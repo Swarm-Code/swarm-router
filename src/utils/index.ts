@@ -1,7 +1,7 @@
-import fs from "node:fs/promises";
-import readline from "node:readline";
 import JSON5 from "json5";
+import fs from "node:fs/promises";
 import path from "node:path";
+import readline from "node:readline";
 import {
   CONFIG_FILE,
   DEFAULT_CONFIG,
@@ -44,22 +44,18 @@ export const initDir = async () => {
   await ensureDir(path.join(HOME_DIR, "logs"));
 };
 
-const createReadline = () => {
-  return readline.createInterface({
+const createReadline = () => readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
-};
 
-const question = (query: string): Promise<string> => {
-  return new Promise((resolve) => {
+const question = async (query: string): Promise<string> => new Promise((resolve) => {
     const rl = createReadline();
     rl.question(query, (answer) => {
       rl.close();
       resolve(answer);
     });
   });
-};
 
 const confirm = async (query: string): Promise<boolean> => {
   const answer = await question(query);
@@ -138,7 +134,7 @@ export const backupConfigFile = async () => {
 
         // Find all backup files for this config
         const backupFiles = files
-          .filter(file => file.startsWith(configFileName) && file.endsWith('.bak'))
+          .filter((file) => file.startsWith(configFileName) && file.endsWith('.bak'))
           .sort()
           .reverse(); // Sort in descending order (newest first)
 

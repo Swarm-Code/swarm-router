@@ -3,7 +3,7 @@ export interface ITool {
   description: string;
   input_schema: any;
 
-  handler: (args: any, context: any) => Promise<string>;
+  handler(args: any, context: any): Promise<string>;
 }
 
 export interface IAgent {
@@ -11,9 +11,9 @@ export interface IAgent {
 
   tools: Map<string, ITool>;
 
-  shouldHandle: (req: any, config: any) => boolean;
+  shouldHandle(req: any, config: any): boolean;
 
-  reqHandler: (req: any, config: any) => void;
+  reqHandler(req: any, config: any): void;
 
-  resHandler?: (payload: any, config: any) => void;
+  resHandler?(payload: any, config: any): void;
 }

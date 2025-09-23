@@ -1,7 +1,7 @@
+import find from 'find-process';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { PID_FILE, REFERENCE_COUNT_FILE } from '../constants';
 import { readConfigFile } from '.';
-import find from 'find-process';
 
 export async function isProcessRunning(pid: number): Promise<boolean> {
     try {
@@ -92,6 +92,6 @@ export async function getServiceInfo() {
         port,
         endpoint: `http://127.0.0.1:${port}`,
         pidFile: PID_FILE,
-        referenceCount: getReferenceCount()
+        referenceCount: getReferenceCount(),
     };
 }

@@ -1,18 +1,18 @@
 #!/usr/bin/env node
+import { spawn, exec } from "child_process";
+import fs, { existsSync, readFileSync } from "fs";
+import { join } from "path";
+import { version } from "../package.json";
+import { PID_FILE, REFERENCE_COUNT_FILE } from "./constants";
 import { run } from "./index";
-import { showStatus } from "./utils/status";
 import { executeCodeCommand } from "./utils/codeCommand";
-import { parseStatusLineData, type StatusLineInput } from "./utils/statusline";
 import {
   cleanupPidFile,
   isServiceRunning,
   getServiceInfo,
 } from "./utils/processCheck";
-import { version } from "../package.json";
-import { spawn, exec } from "child_process";
-import { PID_FILE, REFERENCE_COUNT_FILE } from "./constants";
-import fs, { existsSync, readFileSync } from "fs";
-import { join } from "path";
+import { showStatus } from "./utils/status";
+import { parseStatusLineData, type StatusLineInput } from "./utils/statusline";
 
 const command = process.argv[2];
 

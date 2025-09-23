@@ -1,13 +1,16 @@
 {
   "name": "@musistudio/claude-code-router",
-  "version": "1.0.49",
+  "version": "1.0.50",
   "description": "Use Claude Code without an Anthropics account and route it to another LLM provider",
   "bin": {
     "ccr": "./dist/cli.js"
   },
   "scripts": {
     "build": "node scripts/build.js",
-    "release": "npm run build && npm publish"
+    "release": "npm run build && npm publish",
+    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint 'src/**/*.ts' -c .eslintrc.js",
+    "lint:fix": "ESLINT_USE_FLAT_CONFIG=false eslint 'src/**/*.ts' -c .eslintrc.js --fix",
+    "format": "prettier --write 'src/**/*.ts'"
   },
   "keywords": [
     "claude",
@@ -31,9 +34,22 @@
   },
   "devDependencies": {
     "@types/node": "^24.0.15",
-    "esbuild": "^0.25.1",
+    "@typescript-eslint/eslint-plugin": "^8.44.1",
+    "@typescript-eslint/eslint-plugin-tslint": "^7.0.2",
+    "@typescript-eslint/parser": "^8.44.1",
+    "esbuild": "^0.25.10",
+    "eslint": "^9.36.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-jsdoc": "^60.2.0",
+    "eslint-plugin-no-null": "^1.0.2",
+    "eslint-plugin-prefer-arrow": "^1.2.3",
+    "eslint-plugin-prettier": "^5.5.4",
+    "eslint-plugin-unicorn": "^61.0.2",
     "fastify": "^5.4.0",
+    "prettier": "^3.6.2",
     "shx": "^0.4.0",
+    "tslint": "^5.20.1",
     "typescript": "^5.8.2"
   },
   "publishConfig": {

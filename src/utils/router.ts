@@ -3,9 +3,9 @@ import {
   MessageParam,
   Tool,
 } from "@anthropic-ai/sdk/resources/messages";
+import { readFile } from 'fs/promises'
 import { get_encoding } from "tiktoken";
 import { sessionUsageCache, Usage } from "./cache";
-import { readFile } from 'fs/promises'
 
 const enc = get_encoding("cl100k_base");
 
@@ -40,7 +40,9 @@ const calculateTokenCount = (
     tokenCount += enc.encode(system).length;
   } else if (Array.isArray(system)) {
     system.forEach((item: any) => {
-      if (item.type !== "text") return;
+      if (item.type !== "text") {
+return;
+}
       if (typeof item.text === "string") {
         tokenCount += enc.encode(item.text).length;
       } else if (Array.isArray(item.text)) {
@@ -67,7 +69,7 @@ const getUseModel = async (
   req: any,
   tokenCount: number,
   config: any,
-  lastUsage?: Usage | undefined
+  lastUsage?: Usage
 ) => {
   if (req.body.model.includes(",")) {
     const [provider, model] = req.body.model.split(",");
@@ -155,7 +157,7 @@ export const router = async (req: any, _res: any, context: any) => {
 
   try {
     const tokenCount = calculateTokenCount(
-      messages as MessageParam[],
+      messages,
       system,
       tools as Tool[]
     );
@@ -166,7 +168,7 @@ export const router = async (req: any, _res: any, context: any) => {
         const customRouter = require(config.CUSTOM_ROUTER_PATH);
         req.tokenCount = tokenCount; // Pass token count to custom router
         model = await customRouter(req, config, {
-          event
+          event,
         });
       } catch (e: any) {
         req.log.error(`failed to load custom router: ${e.message}`);

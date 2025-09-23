@@ -1,12 +1,12 @@
 import { spawn, type StdioOptions } from "child_process";
+import { join } from "path";
+import { HOME_DIR } from "../constants";
 import { readConfigFile } from ".";
 import { closeService } from "./close";
 import {
   decrementReferenceCount,
   incrementReferenceCount,
 } from "./processCheck";
-import {HOME_DIR} from "../constants";
-import {join} from "path";
 
 export async function executeCodeCommand(args: string[] = []) {
   // Set environment variables
@@ -29,7 +29,7 @@ export async function executeCodeCommand(args: string[] = []) {
         type: "command",
         command: "ccr statusline",
         padding: 0,
-      }
+      },
     }
     args.push(`--settings=${JSON.stringify(settingsFlag)}`);
   }

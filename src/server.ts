@@ -1,18 +1,16 @@
-import Server from "@musistudio/llms";
-import { readConfigFile, writeConfigFile, backupConfigFile } from "./utils";
-import { checkForUpdates, performUpdate } from "./utils";
-import { join } from "path";
 import fastifyStatic from "@fastify/static";
+import Server from "@musistudio/llms";
 import { readdirSync, statSync, readFileSync, writeFileSync, existsSync } from "fs";
 import { homedir } from "os";
+import { join } from "path";
+import { readConfigFile, writeConfigFile, backupConfigFile } from "./utils";
+import { checkForUpdates, performUpdate } from "./utils";
 
 export const createServer = (config: any): Server => {
   const server = new Server(config);
 
   // Add endpoint to read config.json with access control
-  server.app.get("/api/config", async (req, reply) => {
-    return await readConfigFile();
-  });
+  server.app.get("/api/config", async (req, reply) => await readConfigFile());
 
   server.app.get("/api/transformers", async () => {
     const transformers =
@@ -62,9 +60,7 @@ export const createServer = (config: any): Server => {
   });
 
   // Redirect /ui to /ui/ for proper static file serving
-  server.app.get("/ui", async (_, reply) => {
-    return reply.redirect("/ui/");
-  });
+  server.app.get("/ui", async (_, reply) => reply.redirect("/ui/"));
 
   // 版本检查端点
   server.app.get("/api/update/check", async (req, reply) => {
@@ -76,7 +72,7 @@ export const createServer = (config: any): Server => {
       return {
         hasUpdate,
         latestVersion: hasUpdate ? latestVersion : undefined,
-        changelog: hasUpdate ? changelog : undefined
+        changelog: hasUpdate ? changelog : undefined,
       };
     } catch (error) {
       console.error("Failed to check for updates:", error);
@@ -88,7 +84,7 @@ export const createServer = (config: any): Server => {
   server.app.post("/api/update/perform", async (req, reply) => {
     try {
       // 只允许完全访问权限的用户执行更新
-      const accessLevel = (req as any).accessLevel || "restricted";
+      const accessLevel = (req).accessLevel || "restricted";
       if (accessLevel !== "full") {
         reply.status(403).send("Full access required to perform updates");
         return;
@@ -122,7 +118,7 @@ export const createServer = (config: any): Server => {
               name: file,
               path: filePath,
               size: stats.size,
-              lastModified: stats.mtime.toISOString()
+              lastModified: stats.mtime.toISOString(),
             });
           }
         }
@@ -141,7 +137,7 @@ export const createServer = (config: any): Server => {
   // 获取日志内容端点
   server.app.get("/api/logs", async (req, reply) => {
     try {
-      const filePath = (req.query as any).file as string;
+      const filePath = (req.query).file as string;
       let logFilePath: string;
 
       if (filePath) {
@@ -157,7 +153,7 @@ export const createServer = (config: any): Server => {
       }
 
       const logContent = readFileSync(logFilePath, 'utf8');
-      const logLines = logContent.split('\n').filter(line => line.trim())
+      const logLines = logContent.split('\n').filter((line) => line.trim())
 
       return logLines;
     } catch (error) {
@@ -169,7 +165,7 @@ export const createServer = (config: any): Server => {
   // 清除日志内容端点
   server.app.delete("/api/logs", async (req, reply) => {
     try {
-      const filePath = (req.query as any).file as string;
+      const filePath = (req.query).file as string;
       let logFilePath: string;
 
       if (filePath) {

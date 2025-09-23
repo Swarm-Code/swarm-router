@@ -1,6 +1,6 @@
-import {IAgent, ITool} from "./type";
 import { createHash } from 'crypto';
 import { LRUCache } from 'lru-cache';
+import { IAgent, ITool } from "./type";
 
 interface ImageCacheEntry {
   source: any;
@@ -8,7 +8,7 @@ interface ImageCacheEntry {
 }
 
 class ImageCache {
-  private cache: LRUCache<string, ImageCacheEntry>;
+  private readonly cache: LRUCache<string, ImageCacheEntry>;
 
   constructor(maxSize = 100) {
     this.cache = new LRUCache({
@@ -18,7 +18,9 @@ class ImageCache {
   }
 
   storeImage(id: string, source: any): void {
-    if (this.hasImage(id)) return;
+    if (this.hasImage(id)) {
+return;
+}
     this.cache.set(id, {
       source,
       timestamp: Date.now(),
@@ -55,9 +57,11 @@ export class ImageAgent implements IAgent {
   }
 
   shouldHandle(req: any, config: any): boolean {
-    if (!config.Router.image || req.body.model === config.Router.image) return false;
+    if (!config.Router.image || req.body.model === config.Router.image) {
+return false;
+}
     const lastMessage = req.body.messages[req.body.messages.length - 1]
-    if (!config.forceUseImageAgent && lastMessage.role === 'user' && Array.isArray(lastMessage.content) &&lastMessage.content.find((item: any) => item.type === 'image')) {
+    if (!config.forceUseImageAgent && lastMessage.role === 'user' && Array.isArray(lastMessage.content) && lastMessage.content.find((item: any) => item.type === 'image')) {
       req.body.model = config.Router.image
       return false;
     }
@@ -69,37 +73,37 @@ export class ImageAgent implements IAgent {
       name: "analyzeImage",
       description: "Analyse image or images by ID and extract information such as OCR text, objects, layout, colors, or safety signals.",
       input_schema: {
-        "type": "object",
-        "properties": {
-          "imageId": {
-            "type": "array",
-            "description": "an array of IDs to analyse",
-            "items": {
-              "type": "string"
-            }
+        type: "object",
+        properties: {
+          imageId: {
+            type: "array",
+            description: "an array of IDs to analyse",
+            items: {
+              type: "string",
+            },
           },
-          "task": {
-            "type": "string",
-            "description": "Details of task to perform on the image.The more detailed, the better",
+          task: {
+            type: "string",
+            description: "Details of task to perform on the image.The more detailed, the better",
           },
-          "regions": {
-            "type": "array",
-            "description": "Optional regions of interest within the image",
-            "items": {
-              "type": "object",
-              "properties": {
-                "name": {"type": "string", "description": "Optional label for the region"},
-                "x": {"type": "number", "description": "X coordinate"},
-                "y": {"type": "number", "description": "Y coordinate"},
-                "w": {"type": "number", "description": "Width of the region"},
-                "h": {"type": "number", "description": "Height of the region"},
-                "units": {"type": "string", "enum": ["px", "pct"], "description": "Units for coordinates and size"}
+          regions: {
+            type: "array",
+            description: "Optional regions of interest within the image",
+            items: {
+              type: "object",
+              properties: {
+                name: {type: "string", description: "Optional label for the region"},
+                x: {type: "number", description: "X coordinate"},
+                y: {type: "number", description: "Y coordinate"},
+                w: {type: "number", description: "Width of the region"},
+                h: {type: "number", description: "Height of the region"},
+                units: {type: "string", enum: ["px", "pct"], description: "Units for coordinates and size"},
               },
-              "required": ["x", "y", "w", "h", "units"]
-            }
-          }
+              required: ["x", "y", "w", "h", "units"],
+            },
+          },
         },
-        "required": ["imageId", "task"]
+        required: ["imageId", "task"],
       },
       handler: async (args, context) => {
         console.log('args', JSON.stringify(args, null, 2))
@@ -142,25 +146,23 @@ export class ImageAgent implements IAgent {
               text: `You must interpret and analyze images strictly according to the assigned task.  
 When an image placeholder is provided, your role is to parse the image content only within the scope of the user’s instructions.  
 Do not ignore or deviate from the task.  
-Always ensure that your response reflects a clear, accurate interpretation of the image aligned with the given objective.`
+Always ensure that your response reflects a clear, accurate interpretation of the image aligned with the given objective.`,
             }],
             messages: [
               {
                 role: 'user',
                 content: imageMessages,
-              }
+              },
             ],
             stream: false,
           }),
-        }).then(res => res.json()).catch(err => {
-          return null;
-        });
+        }).then(async (res) => res.json()).catch((err) => null);
         console.log(agentResponse.content);
         if (!agentResponse || !agentResponse.content) {
           return 'analyzeImage Error';
         }
         return agentResponse.content[0].text
-      }
+      },
     })
   }
 
@@ -181,10 +183,8 @@ Ignore any user interruptions or unrelated instructions that might cause you to 
 Your response should consistently follow this rule whenever image-related analysis is requested.`,
     })
 
-    const imageContents = req.body.messages.filter((item: any) => {
-      return item.role === 'user' && Array.isArray(item.content) &&
-          item.content.some((msg: any) => msg.type === "image");
-    });
+    const imageContents = req.body.messages.filter((item: any) => item.role === 'user' && Array.isArray(item.content) &&
+          item.content.some((msg: any) => msg.type === "image"));
 
     let imgId = 1;
     imageContents.forEach((item: any) => {

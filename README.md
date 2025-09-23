@@ -26,6 +26,7 @@ I am seeking funding support for this project to better sustain its development.
 - **Dynamic Model Switching**: Switch models on-the-fly within Claude Code using the `/model` command.
 - **GitHub Actions Integration**: Trigger Claude Code tasks in your GitHub workflows.
 - **Plugin System**: Extend functionality with custom transformers.
+- **MITM Command Interception**: Intercept and route Claude Code local commands (like `/compact`) to specific models.
 
 ## 🚀 Getting Started
 
@@ -355,11 +356,56 @@ The `Router` object defines which model to use for different scenarios:
 - `longContext`: A model for handling long contexts (e.g., > 60K tokens).
 - `longContextThreshold` (optional): The token count threshold for triggering the long context model. Defaults to 60000 if not specified.
 - `webSearch`: Used for handling web search tasks and this requires the model itself to support the feature. If you're using openrouter, you need to add the `:online` suffix after the model name.
-- `image` (beta): Used for handling image-related tasks (supported by CCR’s built-in agent). If the model does not support tool calling, you need to set the `config.forceUseImageAgent` property to `true`.
+- `image` (beta): Used for handling image-related tasks (supported by CCR's built-in agent). If the model does not support tool calling, you need to set the `config.forceUseImageAgent` property to `true`.
+- `compact`: Used for routing `/compact` commands from Claude Code. The router intercepts these commands and routes them to the specified model for efficient conversation summarization.
 
 - You can also switch models dynamically in Claude Code with the `/model` command:
 `/model provider_name,model_name`
 Example: `/model openrouter,anthropic/claude-3.5-sonnet`
+
+#### MITM Command Interception
+
+Claude Code Router can intercept and route Claude Code's local commands (like `/compact`) to specific models. This feature acts as a Man-in-the-Middle (MITM) system to:
+
+1. **Intercept Commands**: Detects Claude Code local commands before they reach the default provider
+2. **Route to Specific Models**: Routes intercepted commands to configured models
+3. **Transform Messages**: Automatically transforms the command into an appropriate format for the target model
+4. **Log Activity**: Creates audit logs for all intercepted commands
+
+**Configuration Example:**
+
+```json
+{
+  "Router": {
+    "default": "deepseek,deepseek-chat",
+    "background": "ollama,qwen2.5-coder:latest",
+    "compact": "openai,gpt-5-nano"  // Routes /compact commands
+  }
+}
+```
+
+**How it Works:**
+
+When you use `/compact` in Claude Code:
+1. CCR intercepts the command before it reaches the API
+2. The command is routed to the model specified in `Router.compact`
+3. The request is transformed into a summarization task
+4. The response is returned to Claude Code as if it came from the original API
+
+**Supported Commands:**
+- `/compact`: Conversation summarization (routes to `Router.compact`)
+
+**Note:** If you're using models that require `max_completion_tokens` instead of `max_tokens` (like `gpt-5-nano`), make sure to configure the appropriate transformer:
+
+```json
+{
+  "transformer": {
+    "gpt-5-nano": {
+      "use": ["maxcompletiontokens"]
+    }
+  }
+}
+```
 
 #### Custom Router
 

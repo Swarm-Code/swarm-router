@@ -2,10 +2,10 @@ import { getServiceInfo } from './processCheck';
 
 export async function showStatus() {
     const info = await getServiceInfo();
-    
+
     console.log('\n📊 Claude Code Router Status');
     console.log('═'.repeat(40));
-    
+
     if (info.running) {
         console.log('✅ Status: Running');
         console.log(`🆔 Process ID: ${info.pid}`);
@@ -22,6 +22,6 @@ export async function showStatus() {
         console.log('💡 To start the service:');
         console.log('   ccr start');
     }
-    
+
     console.log('');
 }

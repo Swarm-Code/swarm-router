@@ -1,27 +1,27 @@
 import { existsSync } from "fs";
 import { writeFile } from "fs/promises";
+import JSON5 from "json5";
+import { EventEmitter } from "node:events";
 import { homedir } from "os";
 import path, { join } from "path";
-import { initConfig, initDir, cleanupLogFiles } from "./utils";
-import { createServer } from "./server";
-import { router } from "./utils/router";
+import { createStream } from 'rotating-file-stream';
+import agentsManager from "./agents";
+import { IAgent } from "./agents/type";
+import { CONFIG_FILE } from "./constants";
+import { HOME_DIR } from "./constants";
 import { apiKeyAuth } from "./middleware/auth";
+import { createServer } from "./server";
+import { initConfig, initDir, cleanupLogFiles } from "./utils";
+import { sessionUsageCache } from "./utils/cache";
 import {
   cleanupPidFile,
   isServiceRunning,
   savePid,
 } from "./utils/processCheck";
-import { CONFIG_FILE } from "./constants";
-import { createStream } from 'rotating-file-stream';
-import { HOME_DIR } from "./constants";
-import { sessionUsageCache } from "./utils/cache";
-import {SSEParserTransform} from "./utils/SSEParser.transform";
-import {SSESerializerTransform} from "./utils/SSESerializer.transform";
-import {rewriteStream} from "./utils/rewriteStream";
-import JSON5 from "json5";
-import { IAgent } from "./agents/type";
-import agentsManager from "./agents";
-import { EventEmitter } from "node:events";
+import { rewriteStream } from "./utils/rewriteStream";
+import { router } from "./utils/router";
+import { SSEParserTransform } from "./utils/SSEParser.transform";
+import { SSESerializerTransform } from "./utils/SSESerializer.transform";
 
 const event = new EventEmitter()
 
@@ -95,16 +95,16 @@ async function run(options: RunOptions = {}) {
     : port;
 
   // Configure logger based on config settings
-  const pad = num => (num > 9 ? "" : "0") + num;
+  const pad = (num) => (num > 9 ? "" : "0") + num;
   const generator = (time, index) => {
     if (!time) {
       time = new Date()
     }
 
-    var month = time.getFullYear() + "" + pad(time.getMonth() + 1);
-    var day = pad(time.getDate());
-    var hour = pad(time.getHours());
-    var minute = pad(time.getMinutes());
+    const month = `${time.getFullYear()  }${  pad(time.getMonth() + 1)}`;
+    const day = pad(time.getDate());
+    const hour = pad(time.getHours());
+    const minute = pad(time.getMinutes());
 
     return `./logs/ccr-${month}${day}${hour}${minute}${pad(time.getSeconds())}${index ? `_${index}` : ''}.log`;
   };
@@ -117,7 +117,7 @@ async function run(options: RunOptions = {}) {
             maxFiles: 3,
             interval: "1d",
             compress: false,
-            maxSize: "50M"
+            maxSize: "50M",
           }),
         }
       : false;
@@ -127,7 +127,7 @@ async function run(options: RunOptions = {}) {
     initialConfig: {
       // ...config,
       providers: config.Providers || config.providers,
-      HOST: HOST,
+      HOST,
       PORT: servicePort,
       LOG_FILE: join(
         homedir(),
@@ -147,22 +147,123 @@ async function run(options: RunOptions = {}) {
     server.log.error("Unhandled rejection at:", promise, "reason:", reason);
   });
   // Add async preHandler hook for authentication
-  server.addHook("preHandler", async (req, reply) => {
-    return new Promise((resolve, reject) => {
+  server.addHook("preHandler", async (req, reply) => new Promise((resolve, reject) => {
       const done = (err?: Error) => {
-        if (err) reject(err);
-        else resolve();
+        if (err) {
+reject(err);
+} else {
+resolve();
+}
       };
       // Call the async auth function
       apiKeyAuth(config)(req, reply, done).catch(reject);
-    });
-  });
+    }));
   server.addHook("preHandler", async (req, reply) => {
     if (req.url.startsWith("/v1/messages")) {
+      // AGGRESSIVE MITM INTERCEPTION - Check EVERY request for /compact command
+      const lastMessage = req.body.messages[req.body.messages.length - 1];
+      let messageContent = '';
+
+      // Extract ALL content to check for /compact
+      if (typeof lastMessage.content === 'string') {
+        messageContent = lastMessage.content;
+      } else if (Array.isArray(lastMessage.content)) {
+        // Combine all text content parts
+        messageContent = lastMessage.content
+          .filter((item: any) => item.type === 'text')
+          .map((item: any) => item.text || '')
+          .join(' ');
+      }
+
+      // AGGRESSIVE CHECK: Look for /compact in multiple formats
+      const hasCompactCommand =
+        messageContent.includes('<command-name>/compact</command-name>') ||
+        messageContent.includes('/compact') ||
+        messageContent.toLowerCase().includes('compact') && messageContent.includes('command');
+
+      if (hasCompactCommand) {
+        // Silently handle compact command routing
+        // console.log('=' .repeat(80));
+        // console.log('[MITM ROUTING] /compact DETECTED - ROUTING TO COMPACT MODEL');
+        // console.log('[MITM ROUTING] Original model:', req.body.model);
+
+        // Check if compact route is configured
+        if (config.Router?.compact) {
+          const [provider, model] = config.Router.compact.split(',');
+          // console.log('[MITM ROUTING] Routing to:', config.Router.compact);
+
+          // Override the model to use the compact route
+          req.body.model = config.Router.compact;
+
+          // Transform the message to be more suitable for compacting
+          const lastMsg = req.body.messages[req.body.messages.length - 1];
+          if (typeof lastMsg.content === 'string' || Array.isArray(lastMsg.content)) {
+            // Extract the actual compact command arguments
+            let compactArgs = '';
+            const argsMatch = messageContent.match(/<command-args>([^<]*)<\/command-args>/);
+            if (argsMatch) {
+              compactArgs = argsMatch[1];
+            }
+
+            // Replace the command with a clear instruction for the compact model
+            const compactInstruction = `Please provide a concise summary of this conversation. ${compactArgs ? `Additional instructions: ${  compactArgs}` : ''}`;
+
+            // Add system message for compact operation
+            if (!req.body.system) {
+              req.body.system = [];
+            }
+            req.body.system.push({
+              type: 'text',
+              text: 'You are a conversation summarizer. Create a brief, clear summary that preserves the essential context and key points. Be concise but comprehensive.',
+              cache_control: { type: 'ephemeral' },
+            });
+
+            // Replace the last message with the compact instruction
+            req.body.messages[req.body.messages.length - 1] = {
+              role: 'user',
+              content: compactInstruction,
+            };
+
+            // console.log('[MITM ROUTING] Message transformed for compacting');
+          }
+
+          // console.log('[MITM ROUTING] Request will be routed to compact model:', config.Router.compact);
+          // console.log('=' .repeat(80));
+
+          // Log the routing
+          const fs = require('fs');
+          const path = require('path');
+          const logsDir = path.join(process.env.HOME || '.', '.claude-code-router', 'logs');
+          if (!fs.existsSync(logsDir)) {
+            fs.mkdirSync(logsDir, { recursive: true });
+          }
+
+          const sessionId = req.sessionId || 'unknown-session';
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const logFileName = `claudemitm-ROUTED-${sessionId}-${timestamp}.log`;
+          const logFilePath = path.join(logsDir, logFileName);
+
+          fs.writeFileSync(logFilePath, JSON.stringify({
+            routed: true,
+            reason: '/compact command detected',
+            routedTo: config.Router.compact,
+            originalModel: req.body.model,
+            timestamp: new Date().toISOString(),
+            sessionId,
+          }, null, 2));
+
+        } else {
+          server.log.warn('[MITM ROUTING] No compact route configured in config.Router.compact');
+        }
+      }
+
       const useAgents = []
 
+      // console.log('[Main] Checking agents for request');
       for (const agent of agentsManager.getAllAgents()) {
+        // console.log('[Main] Checking agent:', agent.name);
         if (agent.shouldHandle(req, config)) {
+          // console.log('[Main] Agent', agent.name, 'will handle request');
           // 设置agent标识
           useAgents.push(agent.name)
 
@@ -174,23 +275,51 @@ async function run(options: RunOptions = {}) {
             if (!req.body?.tools?.length) {
               req.body.tools = []
             }
-            req.body.tools.unshift(...Array.from(agent.tools.values()).map(item => {
-              return {
+            req.body.tools.unshift(...Array.from(agent.tools.values()).map((item) => ({
                 name: item.name,
                 description: item.description,
-                input_schema: item.input_schema
-              }
-            }))
+                input_schema: item.input_schema,
+              })))
+            // console.log('[Main] Added', agent.tools.size, 'tools from agent', agent.name);
           }
+        } else {
+          // console.log('[Main] Agent', agent.name, 'will not handle request');
         }
       }
 
       if (useAgents.length) {
         req.agents = useAgents;
       }
+
+      // Check if the request has been blocked by an agent
+      if (req.blockRequest && req.blockedResponse) {
+        console.log('=' .repeat(80));
+        console.log('[MITM BLOCKING] REQUEST FULLY BLOCKED - NOT FORWARDING TO PROVIDERS');
+        console.log('[MITM BLOCKING] Session ID:', req.sessionId || 'unknown');
+        console.log('[MITM BLOCKING] Blocked by agents:', req.agents || []);
+        console.log('[MITM BLOCKING] Response ID:', req.blockedResponse.id);
+        console.log('[MITM BLOCKING] Returning intercepted response directly to client');
+        console.log('=' .repeat(80));
+
+        // Log to file for audit
+        server.log.info({
+          event: 'COMMAND_BLOCKED',
+          sessionId: req.sessionId,
+          agents: req.agents,
+          responseId: req.blockedResponse.id,
+          message: 'Command intercepted and blocked from reaching providers',
+        });
+
+        // Return the blocked response immediately without forwarding to any provider
+        reply.code(200);
+        reply.header('content-type', 'application/json');
+        reply.send(req.blockedResponse);
+        return; // Exit early - do not forward to router/providers
+      }
+
       await router(req, reply, {
         config,
-        event
+        event,
       });
     }
   });
@@ -239,16 +368,16 @@ async function run(options: RunOptions = {}) {
                     type: "tool_use",
                     id: currentToolId,
                     name: currentToolName,
-                    input: args
+                    input: args,
                   })
                   const toolResult = await currentAgent?.tools.get(currentToolName)?.handler(args, {
                     req,
-                    config
+                    config,
                   });
                   toolMessages.push({
-                    "tool_use_id": currentToolId,
-                    "type": "tool_result",
-                    "content": toolResult
+                    tool_use_id: currentToolId,
+                    type: "tool_result",
+                    content: toolResult,
                   })
                   currentAgent = undefined
                   currentToolIndex = -1
@@ -264,11 +393,11 @@ async function run(options: RunOptions = {}) {
               if (data.event === 'message_delta' && toolMessages.length) {
                 req.body.messages.push({
                   role: 'assistant',
-                  content: assistantMessages
+                  content: assistantMessages,
                 })
                 req.body.messages.push({
                   role: 'user',
-                  content: toolMessages
+                  content: toolMessages,
                 })
                 const response = await fetch(`http://127.0.0.1:${config.PORT}/v1/messages`, {
                   method: "POST",
@@ -332,7 +461,9 @@ async function run(options: RunOptions = {}) {
           try {
             while (true) {
               const { done, value } = await reader.read();
-              if (done) break;
+              if (done) {
+break;
+}
               // Process the value if needed
               const dataStr = new TextDecoder().decode(value);
               if (!dataStr.startsWith("event: message_delta")) {
@@ -358,7 +489,7 @@ async function run(options: RunOptions = {}) {
         return done(null, originalStream)
       }
       sessionUsageCache.put(req.sessionId, payload.usage);
-      if (typeof payload ==='object') {
+      if (typeof payload === 'object') {
         if (payload.error) {
           return done(payload.error, null)
         } else {
@@ -366,7 +497,7 @@ async function run(options: RunOptions = {}) {
         }
       }
     }
-    if (typeof payload ==='object' && payload.error) {
+    if (typeof payload === 'object' && payload.error) {
       return done(payload.error, null)
     }
     done(null, payload)

@@ -23,7 +23,7 @@ export class SSESerializerTransform extends TransformStream<any, string> {
 
                 output += '\n';
                 controller.enqueue(output);
-            }
+            },
         });
     }
 }

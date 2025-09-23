@@ -1,8 +1,9 @@
+import { commandAgent } from './command.agent'
 import { imageAgent } from './image.agent'
 import { IAgent } from './type';
 
 export class AgentsManager {
-    private agents: Map<string, IAgent> = new Map();
+    private readonly agents: Map<string, IAgent> = new Map();
 
     /**
      * 注册一个agent
@@ -45,4 +46,5 @@ export class AgentsManager {
 
 const agentsManager = new AgentsManager()
 agentsManager.registerAgent(imageAgent)
+agentsManager.registerAgent(commandAgent)
 export default agentsManager

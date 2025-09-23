@@ -1,4 +1,4 @@
-export class SSEParserTransform extends TransformStream<string, any> {
+export class SSEParserTransform extends TransformStream<string> {
     private buffer = '';
     private currentEvent: Record<string, any> = {};
 
@@ -25,14 +25,14 @@ export class SSEParserTransform extends TransformStream<string, any> {
                 if (this.buffer.trim()) {
                     const events: any[] = [];
                     this.processLine(this.buffer.trim(), events);
-                    events.forEach(event => controller.enqueue(event));
+                    events.forEach((event) => controller.enqueue(event));
                 }
 
                 // 推送最后一个事件（如果有）
                 if (Object.keys(this.currentEvent).length > 0) {
                     controller.enqueue(this.currentEvent);
                 }
-            }
+            },
         });
     }
 
