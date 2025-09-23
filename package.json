@@ -22,11 +22,13 @@
   "author": "musistudio",
   "license": "MIT",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.63.0",
     "@fastify/static": "^8.2.0",
     "@musistudio/llms": "^1.0.32",
     "dotenv": "^16.4.7",
     "find-process": "^2.0.0",
     "json5": "^2.2.3",
+    "lru-cache": "^11.2.2",
     "openurl": "^1.1.1",
     "rotating-file-stream": "^3.2.7",
     "tiktoken": "^1.0.21",

@@ -1,5 +1,4 @@
 import fs from "fs";
-import JSON5 from "json5";
 import path from "path";
 import { IAgent, ITool } from "./type";
 
@@ -24,12 +23,12 @@ export class CommandAgent implements IAgent {
       projectFolder = req.body.metadata.workspace.project_dir;
     } else {
       // Fallback to extract from the last message content
-      const lastMessage = req.body.messages[req.body.messages.length - 1];
+      const lastMsg = req.body.messages[req.body.messages.length - 1];
 
-      if (lastMessage && typeof lastMessage.content === 'string') {
-        projectFolder = this.extractProjectFolder(lastMessage.content) || projectFolder;
-      } else if (lastMessage && Array.isArray(lastMessage.content)) {
-        const textContent = lastMessage.content.find((item: any) => item.type === 'text');
+      if (lastMsg && typeof lastMsg.content === 'string') {
+        projectFolder = this.extractProjectFolder(lastMsg.content) || projectFolder;
+      } else if (lastMsg && Array.isArray(lastMsg.content)) {
+        const textContent = lastMsg.content.find((item: any) => item.type === 'text');
         if (textContent && textContent.text) {
           projectFolder = this.extractProjectFolder(textContent.text) || projectFolder;
         }
@@ -51,7 +50,9 @@ export class CommandAgent implements IAgent {
 
     // Write log entry
     const lastMessage = req.body.messages[req.body.messages.length - 1];
-    const logEntry = `Command intercepted: ${lastMessage?.content || 'unknown command'}\nSession ID: ${sessionId}\nProject Folder: ${projectFolder}\nTimestamp: ${new Date().toISOString()}\n\n`;
+    const logEntry = `Command intercepted: ${lastMessage?.content || 'unknown command'}\n` +
+      `Session ID: ${sessionId}\nProject Folder: ${projectFolder}\n` +
+      `Timestamp: ${new Date().toISOString()}\n\n`;
     fs.writeFileSync(logFilePath, logEntry);
 
     // Silently log command
@@ -80,7 +81,7 @@ export class CommandAgent implements IAgent {
     return null;
   }
 
-  shouldHandle(req: any, config: any): boolean {
+  shouldHandle(req: any, _config: any): boolean {
     // Check if the request contains Claude Code local commands
     const lastMessage = req.body.messages[req.body.messages.length - 1];
     // console.log('[CommandAgent] Checking message for commands:', lastMessage);
@@ -131,7 +132,7 @@ export class CommandAgent implements IAgent {
         },
         required: ["command"],
       },
-      handler: async (args, context) => {
+      handler: async (args, _context) => {
         // Handle the compact command
         if (args.command === '/compact') {
           // This is where we would implement the actual compacting logic
@@ -168,7 +169,7 @@ export class CommandAgent implements IAgent {
         },
         required: ["sessionId", "context"],
       },
-      handler: async (args, context) =>
+      handler: async (args, _context) =>
         // This would be where we implement the ephemeral linearly dependent sub agents logic
         // For now, we'll return a placeholder response
          `Context summary generated for session ${args.sessionId} using ephemeral linearly dependent sub agents.`,
@@ -176,7 +177,7 @@ export class CommandAgent implements IAgent {
     });
   }
 
-  reqHandler(req: any, config: any) {
+  reqHandler(req: any, _config: any) {
     // console.log('[CommandAgent] reqHandler called');
     // Extract command from the request
     const lastMessage = req.body.messages[req.body.messages.length - 1];
@@ -201,7 +202,7 @@ export class CommandAgent implements IAgent {
 
     if (commandNameMatch) {
       const commandName = commandNameMatch[1];
-      const commandMessage = commandMessageMatch ? commandMessageMatch[1] : '';
+      // const commandMessage = commandMessageMatch ? commandMessageMatch[1] : '';
       const commandArgs = commandArgsMatch ? commandArgsMatch[1] : '';
 
       // console.log('[CommandAgent] XML Command intercepted:', {
@@ -226,7 +227,9 @@ export class CommandAgent implements IAgent {
           content: [
             {
               type: 'text',
-              text: `🚫 MITM INTERCEPTION: /compact command has been intercepted and blocked by Claude Code Router.\n\nOriginal command args: ${commandArgs}\n\nThis command was prevented from reaching any LLM provider and will not consume any API tokens.`,
+              text: `🚫 MITM INTERCEPTION: /compact command has been intercepted and blocked ` +
+                `by Claude Code Router.\n\nOriginal command args: ${commandArgs}\n\n` +
+                `This command was prevented from reaching any LLM provider and will not consume any API tokens.`,
             },
           ],
           model: 'mitm-interceptor',
@@ -264,7 +267,9 @@ export class CommandAgent implements IAgent {
           content: [
             {
               type: 'text',
-              text: `🚫 MITM INTERCEPTION: /compact command has been intercepted and blocked by Claude Code Router.\n\nThis command was prevented from reaching any LLM provider and will not consume any API tokens.`,
+              text: `🚫 MITM INTERCEPTION: /compact command has been intercepted and blocked ` +
+                `by Claude Code Router.\n\n` +
+                `This command was prevented from reaching any LLM provider and will not consume any API tokens.`,
             },
           ],
           model: 'mitm-interceptor',
