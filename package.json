@@ -1,5 +1,5 @@
 {
-  "name": "@rinadelph/swarm-router",
+  "name": "@swarmcode/swarm-router",
   "version": "1.0.50",
   "description": "Swarm Router - Advanced Model Routing and Configuration for Claude Code",
   "bin": {

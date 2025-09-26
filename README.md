@@ -54,7 +54,7 @@ npm install -g @anthropic-ai/claude-code
 Then, install Swarm Router:
 
 ```shell
-npm install -g @musistudio/claude-code-router
+npm install -g @swarmcode/swarm-router
 ```
 
 ### 2. Configuration
