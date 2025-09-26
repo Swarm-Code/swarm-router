@@ -1,6 +1,6 @@
 {
   "name": "@swarmcode/swarm-router",
-  "version": "1.0.50",
+  "version": "1.0.51",
   "description": "Swarm Router - Advanced Model Routing and Configuration for Claude Code",
   "bin": {
     "ccr": "./dist/cli.js"
