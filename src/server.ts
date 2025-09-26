@@ -1,13 +1,66 @@
 import fastifyStatic from "@fastify/static";
 import Server from "@musistudio/llms";
+import { spawn } from "child_process";
 import { readdirSync, statSync, readFileSync, writeFileSync, existsSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
+import packageJson from "../package.json";
 import { readConfigFile, writeConfigFile, backupConfigFile } from "./utils";
 import { checkForUpdates, performUpdate } from "./utils";
 
 export const createServer = (config: any): Server => {
   const server = new Server(config);
+
+  // Add comprehensive tracing to track the transformer pipeline
+  server.app.addHook('preHandler', async (request, reply) => {
+    if (request.url.startsWith('/v1/messages') || request.url.startsWith('/v1/chat/completions')) {
+      console.log('[TRANSFORMER TRACE] === PRE-TRANSFORMATION ===');
+      console.log('[TRANSFORMER TRACE] URL:', request.url);
+      console.log('[TRANSFORMER TRACE] Request body keys:', Object.keys(request.body || {}));
+      console.log('[TRANSFORMER TRACE] Model:', (request.body)?.model);
+      console.log('[TRANSFORMER TRACE] reasoning_effort:', (request.body)?.reasoning_effort);
+      console.log('[TRANSFORMER TRACE] verbosity:', (request.body)?.verbosity);
+      console.log('[TRANSFORMER TRACE] reasoning:', (request.body)?.reasoning);
+      console.log('[TRANSFORMER TRACE] temperature:', (request.body)?.temperature);
+      console.log('[TRANSFORMER TRACE] max_tokens:', (request.body)?.max_tokens);
+      console.log('[TRANSFORMER TRACE] max_completion_tokens:', (request.body)?.max_completion_tokens);
+    }
+  });
+
+  server.app.addHook('onSend', async (request, reply, payload) => {
+    if (request.url.startsWith('/v1/messages') || request.url.startsWith('/v1/chat/completions')) {
+      console.log('[TRANSFORMER TRACE] === POST-TRANSFORMATION ===');
+      console.log('[TRANSFORMER TRACE] Final request body keys:', Object.keys(request.body || {}));
+      console.log('[TRANSFORMER TRACE] Final model:', (request.body)?.model);
+      console.log('[TRANSFORMER TRACE] Final reasoning_effort:', (request.body)?.reasoning_effort);
+      console.log('[TRANSFORMER TRACE] Final verbosity:', (request.body)?.verbosity);
+      console.log('[TRANSFORMER TRACE] Final reasoning:', (request.body)?.reasoning);
+      console.log('[TRANSFORMER TRACE] Final temperature:', (request.body)?.temperature);
+      console.log('[TRANSFORMER TRACE] Final max_tokens:', (request.body)?.max_tokens);
+      console.log('[TRANSFORMER TRACE] Final max_completion_tokens:', (request.body)?.max_completion_tokens);
+
+      // CRITICAL: Trace the actual JSON that gets serialized
+      console.log('[HTTP TRACE] === ACTUAL REQUEST JSON SENT TO API ===');
+      const bodyClone = { ...(request.body || {}) };
+      console.log('[HTTP TRACE] JSON.stringify preview:', `${JSON.stringify(bodyClone).substring(0, 200)  }...`);
+      console.log('[HTTP TRACE] Has reasoning property:', 'reasoning' in bodyClone);
+      console.log('[HTTP TRACE] Has reasoning_effort property:', 'reasoning_effort' in bodyClone);
+      console.log('[HTTP TRACE] Has verbosity property:', 'verbosity' in bodyClone);
+
+      // Check for any properties with 'reason' in the name
+      const reasoningProps = Object.keys(bodyClone).filter((key) => key.toLowerCase().includes('reason'));
+      console.log('[HTTP TRACE] All reasoning-related properties:', reasoningProps);
+      reasoningProps.forEach((prop) => {
+        console.log(`[HTTP TRACE] ${prop}:`, bodyClone[prop]);
+      });
+
+      console.log('[TRANSFORMER TRACE] Response status:', reply.statusCode);
+      if (reply.statusCode >= 400) {
+        console.log('[TRANSFORMER TRACE] Error payload:', typeof payload === 'string' ? payload.substring(0, 500) : 'non-string payload');
+      }
+      console.log('='.repeat(100));
+    }
+  });
 
   // Add endpoint to read config.json with access control
   server.app.get("/api/config", async (req, reply) => await readConfigFile());
@@ -44,7 +97,6 @@ export const createServer = (config: any): Server => {
 
     // Restart the service after a short delay to allow response to be sent
     setTimeout(() => {
-      const { spawn } = require("child_process");
       spawn(process.execPath, [process.argv[1], "restart"], {
         detached: true,
         stdio: "ignore",
@@ -66,7 +118,7 @@ export const createServer = (config: any): Server => {
   server.app.get("/api/update/check", async (req, reply) => {
     try {
       // 获取当前版本
-      const currentVersion = require("../package.json").version;
+      const currentVersion = packageJson.version;
       const { hasUpdate, latestVersion, changelog } = await checkForUpdates(currentVersion);
 
       return {

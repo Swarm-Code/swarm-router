@@ -132,7 +132,7 @@ export class CommandAgent implements IAgent {
         },
         required: ["command"],
       },
-      handler: async (args, _context) => {
+      handler: (args, _context) => {
         // Handle the compact command
         if (args.command === '/compact') {
           // This is where we would implement the actual compacting logic
@@ -169,7 +169,7 @@ export class CommandAgent implements IAgent {
         },
         required: ["sessionId", "context"],
       },
-      handler: async (args, _context) =>
+      handler: (args, _context) =>
         // This would be where we implement the ephemeral linearly dependent sub agents logic
         // For now, we'll return a placeholder response
          `Context summary generated for session ${args.sessionId} using ephemeral linearly dependent sub agents.`,
@@ -197,13 +197,13 @@ export class CommandAgent implements IAgent {
 
     // Check for XML-formatted commands from Claude Code
     const commandNameMatch = commandContent.match(/<command-name>\/([^<]+)<\/command-name>/);
-    const commandMessageMatch = commandContent.match(/<command-message>([^<]*)<\/command-message>/);
-    const commandArgsMatch = commandContent.match(/<command-args>([^<]*)<\/command-args>/);
+    // const commandMessageMatch = commandContent.match(/<command-message>([^<]*)<\/command-message>/);
+    // const commandArgsMatch = commandContent.match(/<command-args>([^<]*)<\/command-args>/);
 
     if (commandNameMatch) {
       const commandName = commandNameMatch[1];
       // const commandMessage = commandMessageMatch ? commandMessageMatch[1] : '';
-      const commandArgs = commandArgsMatch ? commandArgsMatch[1] : '';
+      // const commandArgs = commandArgsMatch ? commandArgsMatch[1] : '';
 
       // console.log('[CommandAgent] XML Command intercepted:', {
       //   name: commandName,
@@ -212,36 +212,65 @@ export class CommandAgent implements IAgent {
       // });
 
       if (commandName === 'compact') {
-        // console.log('[CommandAgent] Intercepting /compact command!');
-        // console.log('[CommandAgent] BLOCKING REQUEST - Setting blockRequest flag');
+        console.log('[CommandAgent] Processing /compact command - routing to GPT-5');
 
-        // Create log file for this command
-        this.createCommandLog(req);
+        // Clean up tool call messages for GPT-5 compatibility
+        const cleanMessages = (messages: any[]) => {
+          const cleaned = [];
+          let i = 0;
 
-        // Mark this request as blocked - it should not be forwarded to any provider
-        req.blockRequest = true;
-        req.blockedResponse = {
-          id: `msg_blocked_${  Date.now()}`,
-          type: 'message',
-          role: 'assistant',
-          content: [
-            {
-              type: 'text',
-              text: `🚫 MITM INTERCEPTION: /compact command has been intercepted and blocked ` +
-                `by Claude Code Router.\n\nOriginal command args: ${commandArgs}\n\n` +
-                `This command was prevented from reaching any LLM provider and will not consume any API tokens.`,
-            },
-          ],
-          model: 'mitm-interceptor',
-          stop_reason: 'end_turn',
-          stop_sequence: null,
-          usage: {
-            input_tokens: 0,
-            output_tokens: 0,
-          },
+          while (i < messages.length) {
+            const msg = messages[i];
+
+            // Handle assistant messages with tool calls
+            if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length > 0) {
+              const toolCallIds = new Set(msg.tool_calls.map((tc: any) => tc.id));
+              const responses = [];
+
+              // Look ahead for tool responses
+              let j = i + 1;
+              while (j < messages.length && messages[j].role === 'tool') {
+                if (toolCallIds.has(messages[j].tool_call_id)) {
+                  toolCallIds.delete(messages[j].tool_call_id);
+                  responses.push(messages[j]);
+                }
+                j++;
+              }
+
+              // Only include if we found all responses
+              if (toolCallIds.size === 0) {
+                cleaned.push(msg);
+                cleaned.push(...responses);
+                i = j;
+              } else {
+                console.log(`[CommandAgent] Skipping incomplete tool calls: ${Array.from(toolCallIds).join(', ')}`);
+                i = j;
+              }
+            } else if (msg.role === 'tool') {
+              // Skip orphaned tool responses
+              console.log(`[CommandAgent] Skipping orphaned tool response: ${msg.tool_call_id}`);
+              i++;
+            } else {
+              // Include regular messages
+              cleaned.push(msg);
+              i++;
+            }
+          }
+
+          return cleaned;
         };
 
-        // console.log('[CommandAgent] /compact command FULLY BLOCKED - will not reach providers');
+        // Clean the messages
+        const originalCount = req.messages.length;
+        req.messages = cleanMessages(req.messages);
+        console.log(`[CommandAgent] Cleaned messages for /compact: ${originalCount} -> ${req.messages.length}`);
+
+        // Mark this as a compact request so CCR routes it properly
+        req.isCompactRequest = true;
+
+        // GPT-5 parameters now handled by reasoning transformer in config
+
+        console.log('[CommandAgent] /compact command processed with cleaned messages and GPT-5 parameters');
         return req;
       }
     }
@@ -251,37 +280,60 @@ export class CommandAgent implements IAgent {
       // console.log('[CommandAgent] Direct command detected:', commandContent.trim());
 
       if (commandContent.trim().startsWith('/compact')) {
-        // Handle compact command
-        // console.log('[CommandAgent] Intercepted direct /compact command');
-        // console.log('[CommandAgent] BLOCKING REQUEST - Setting blockRequest flag for direct command');
+        // Same logic as above for direct /compact commands
+        console.log('[CommandAgent] Processing direct /compact command - routing to GPT-5');
 
-        // Create log file for this command
-        this.createCommandLog(req);
+        // Use the same cleanMessages function
+        const cleanMessages = (messages: any[]) => {
+          const cleaned = [];
+          let i = 0;
 
-        // Mark this request as blocked - it should not be forwarded to any provider
-        req.blockRequest = true;
-        req.blockedResponse = {
-          id: `msg_blocked_${  Date.now()}`,
-          type: 'message',
-          role: 'assistant',
-          content: [
-            {
-              type: 'text',
-              text: `🚫 MITM INTERCEPTION: /compact command has been intercepted and blocked ` +
-                `by Claude Code Router.\n\n` +
-                `This command was prevented from reaching any LLM provider and will not consume any API tokens.`,
-            },
-          ],
-          model: 'mitm-interceptor',
-          stop_reason: 'end_turn',
-          stop_sequence: null,
-          usage: {
-            input_tokens: 0,
-            output_tokens: 0,
-          },
+          while (i < messages.length) {
+            const msg = messages[i];
+
+            if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length > 0) {
+              const toolCallIds = new Set(msg.tool_calls.map((tc: any) => tc.id));
+              const responses = [];
+
+              let j = i + 1;
+              while (j < messages.length && messages[j].role === 'tool') {
+                if (toolCallIds.has(messages[j].tool_call_id)) {
+                  toolCallIds.delete(messages[j].tool_call_id);
+                  responses.push(messages[j]);
+                }
+                j++;
+              }
+
+              if (toolCallIds.size === 0) {
+                cleaned.push(msg);
+                cleaned.push(...responses);
+                i = j;
+              } else {
+                console.log(`[CommandAgent] Skipping incomplete tool calls: ${Array.from(toolCallIds).join(', ')}`);
+                i = j;
+              }
+            } else if (msg.role === 'tool') {
+              console.log(`[CommandAgent] Skipping orphaned tool response: ${msg.tool_call_id}`);
+              i++;
+            } else {
+              cleaned.push(msg);
+              i++;
+            }
+          }
+
+          return cleaned;
         };
 
-        // console.log('[CommandAgent] Direct /compact command FULLY BLOCKED - will not reach providers');
+        const originalCount = req.messages.length;
+        req.messages = cleanMessages(req.messages);
+        console.log(`[CommandAgent] Cleaned messages for direct /compact: ${originalCount} -> ${req.messages.length}`);
+
+        // Mark this as a compact request
+        req.isCompactRequest = true;
+
+        // GPT-5 parameters now handled by reasoning transformer in config
+
+        console.log('[CommandAgent] Direct /compact command processed with cleaned messages and GPT-5 parameters');
       } else {
         // Log other commands for future handling
         // console.log('[CommandAgent] Other command detected:', commandContent.trim());

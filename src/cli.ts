@@ -20,7 +20,7 @@ const HELP_TEXT = `
 Usage: ccr [command]
 
 Commands:
-  start         Start server 
+  start         Start server
   stop          Stop server
   restart       Restart server
   status        Show server status
@@ -60,24 +60,24 @@ async function main() {
   const isRunning = await isServiceRunning()
   switch (command) {
     case "start":
-      run();
+      void run();
       break;
     case "stop":
       try {
-        const pid = parseInt(readFileSync(PID_FILE, "utf-8"));
+        const pid = parseInt(readFileSync(PID_FILE, "utf-8"), 10);
         process.kill(pid);
         cleanupPidFile();
         if (existsSync(REFERENCE_COUNT_FILE)) {
           try {
             fs.unlinkSync(REFERENCE_COUNT_FILE);
-          } catch (e) {
+          } catch (_e) {
             // Ignore cleanup errors
           }
         }
         console.log(
           "claude code router service has been successfully stopped."
         );
-      } catch (e) {
+      } catch (_e) {
         console.log(
           "Failed to stop the service. It may have already been stopped."
         );
@@ -279,18 +279,18 @@ async function main() {
     case "restart":
       // Stop the service if it's running
       try {
-        const pid = parseInt(readFileSync(PID_FILE, "utf-8"));
+        const pid = parseInt(readFileSync(PID_FILE, "utf-8"), 10);
         process.kill(pid);
         cleanupPidFile();
         if (existsSync(REFERENCE_COUNT_FILE)) {
           try {
             fs.unlinkSync(REFERENCE_COUNT_FILE);
-          } catch (e) {
+          } catch (_e) {
             // Ignore cleanup errors
           }
         }
         console.log("claude code router service has been stopped.");
-      } catch (e) {
+      } catch (_e) {
         console.log("Service was not running or failed to stop.");
         cleanupPidFile();
       }

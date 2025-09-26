@@ -12,6 +12,63 @@ import { HOME_DIR } from "./constants";
 import { apiKeyAuth } from "./middleware/auth";
 import { createServer } from "./server";
 import { initConfig, initDir, cleanupLogFiles } from "./utils";
+
+// DEEP HTTP TRACING: Intercept all fetch requests to OpenAI
+const originalFetch = global.fetch;
+global.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+
+  if (url.includes('api.openai.com') || url.includes('openai')) {
+    console.log('[DEEP HTTP TRACE] === INTERCEPTED OPENAI REQUEST ===');
+    console.log('[DEEP HTTP TRACE] URL:', url);
+    console.log('[DEEP HTTP TRACE] Method:', init?.method || 'GET');
+
+    if (init?.body) {
+      console.log('[DEEP HTTP TRACE] Raw body type:', typeof init.body);
+      try {
+        let bodyContent = '';
+        if (typeof init.body === 'string') {
+          bodyContent = init.body;
+        } else if (init.body instanceof FormData) {
+          bodyContent = '[FormData]';
+        } else if (init.body instanceof URLSearchParams) {
+          bodyContent = init.body.toString();
+        } else {
+          bodyContent = init.body.toString();
+        }
+
+        console.log('[DEEP HTTP TRACE] Raw body content preview:', `${bodyContent.substring(0, 300)  }...`);
+
+        // Try to parse as JSON if it looks like JSON
+        if (bodyContent.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(bodyContent);
+            console.log('[DEEP HTTP TRACE] Parsed JSON keys:', Object.keys(parsed));
+            console.log('[DEEP HTTP TRACE] Has reasoning property:', 'reasoning' in parsed);
+            console.log('[DEEP HTTP TRACE] Reasoning value:', parsed.reasoning);
+            console.log('[DEEP HTTP TRACE] Has reasoning_effort property:', 'reasoning_effort' in parsed);
+            console.log('[DEEP HTTP TRACE] reasoning_effort value:', parsed.reasoning_effort);
+            console.log('[DEEP HTTP TRACE] Has verbosity property:', 'verbosity' in parsed);
+            console.log('[DEEP HTTP TRACE] verbosity value:', parsed.verbosity);
+
+            // Find all properties with 'reason' in name
+            const reasonProps = Object.keys(parsed).filter((k) => k.toLowerCase().includes('reason'));
+            console.log('[DEEP HTTP TRACE] All reason-related props:', reasonProps);
+          } catch (e: any) {
+            console.log('[DEEP HTTP TRACE] Could not parse body as JSON:', e.message);
+          }
+        }
+      } catch (e: any) {
+        console.log('[DEEP HTTP TRACE] Could not process body:', e.message);
+      }
+    }
+
+    console.log('[DEEP HTTP TRACE] Headers:', JSON.stringify(init?.headers || {}, null, 2));
+    console.log('='.repeat(100));
+  }
+
+  return originalFetch(input, init);
+};
 import { sessionUsageCache } from "./utils/cache";
 import {
   cleanupPidFile,
@@ -44,6 +101,7 @@ async function initializeClaudeConfig() {
     await writeFile(configPath, JSON.stringify(configContent, null, 2));
   }
 }
+
 
 interface RunOptions {
   port?: number;
@@ -91,12 +149,12 @@ async function run(options: RunOptions = {}) {
 
   // Use port from environment variable if set (for background process)
   const servicePort = process.env.SERVICE_PORT
-    ? parseInt(process.env.SERVICE_PORT)
+    ? parseInt(process.env.SERVICE_PORT, 10)
     : port;
 
   // Configure logger based on config settings
-  const pad = (num) => (num > 9 ? "" : "0") + num;
-  const generator = (time, index) => {
+  const pad = (num: number) => (num > 9 ? "" : "0") + num;
+  const generator = (time?: Date, index?: number) => {
     if (!time) {
       time = new Date()
     }
@@ -160,6 +218,13 @@ resolve();
     }));
   server.addHook("preHandler", async (req, reply) => {
     if (req.url.startsWith("/v1/messages")) {
+      console.log('='.repeat(100));
+      console.log('[MITM TRACE] === REQUEST INTERCEPTED ===');
+      console.log('[MITM TRACE] URL:', req.url);
+      console.log('[MITM TRACE] Method:', req.method);
+      console.log('[MITM TRACE] Original Model:', req.body.model);
+      console.log('[MITM TRACE] Session ID:', req.sessionId || 'unknown');
+
       // AGGRESSIVE MITM INTERCEPTION - Check EVERY request for /compact command
       const lastMessage = req.body.messages[req.body.messages.length - 1];
       let messageContent = '';
@@ -167,13 +232,22 @@ resolve();
       // Extract ALL content to check for /compact
       if (typeof lastMessage.content === 'string') {
         messageContent = lastMessage.content;
+        console.log('[MITM TRACE] Message content (string):', messageContent);
       } else if (Array.isArray(lastMessage.content)) {
         // Combine all text content parts
         messageContent = lastMessage.content
           .filter((item: any) => item.type === 'text')
           .map((item: any) => item.text || '')
           .join(' ');
+        console.log('[MITM TRACE] Message content (array):', messageContent);
       }
+
+      console.log('[MITM TRACE] Full request body keys:', Object.keys(req.body));
+      console.log('[MITM TRACE] Request body model:', req.body.model);
+      console.log('[MITM TRACE] Request body max_tokens:', req.body.max_tokens);
+      console.log('[MITM TRACE] Request body reasoning_effort:', req.body.reasoning_effort);
+      console.log('[MITM TRACE] Request body verbosity:', req.body.verbosity);
+      console.log('[MITM TRACE] Request body reasoning:', req.body.reasoning);
 
       // AGGRESSIVE CHECK: Look for /compact in multiple formats
       const hasCompactCommand =
@@ -181,7 +255,16 @@ resolve();
         messageContent.includes('/compact') ||
         messageContent.toLowerCase().includes('compact') && messageContent.includes('command');
 
+      // AGGRESSIVE CHECK: Look for "think" or "ultrathink" words in message content
+      const hasThinkCommand =
+        messageContent.toLowerCase().includes('think') ||
+        messageContent.toLowerCase().includes('ultrathink');
+
+      console.log('[MITM TRACE] Compact command detected:', hasCompactCommand);
+      console.log('[MITM TRACE] Think command detected:', hasThinkCommand);
+
       if (hasCompactCommand) {
+        console.log('[MITM TRACE] === PROCESSING COMPACT COMMAND ===');
         // Silently handle compact command routing
         // console.log('=' .repeat(80));
         // console.log('[MITM ROUTING] /compact DETECTED - ROUTING TO COMPACT MODEL');
@@ -257,6 +340,59 @@ resolve();
         }
       }
 
+      // Handle think command routing
+      if (hasThinkCommand) {
+        console.log('[MITM TRACE] === PROCESSING THINK COMMAND ===');
+        console.log('[MITM TRACE] Original model before think routing:', req.body.model);
+
+        // Check if ultrathink route is configured
+        if (config.Router?.ultrathink) {
+          const [provider, model] = config.Router.ultrathink.split(',');
+          console.log('[MITM TRACE] Ultrathink route configured:', config.Router.ultrathink);
+          console.log('[MITM TRACE] Provider:', provider, 'Model:', model);
+
+          // Override the model to use the ultrathink route
+          req.body.model = config.Router.ultrathink;
+          console.log('[MITM TRACE] Model overridden to:', req.body.model);
+
+          // Don't transform the message - just route to thinking model
+          // The message already contains "think" or "ultrathink" which triggers this
+
+          // Log the routing
+          const fs = require('fs');
+          const path = require('path');
+          const logsDir = path.join(process.env.HOME || '.', '.claude-code-router', 'logs');
+          if (!fs.existsSync(logsDir)) {
+            fs.mkdirSync(logsDir, { recursive: true });
+          }
+
+          const sessionId = req.sessionId || 'unknown-session';
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const logFileName = `claudemitm-THINK-ROUTED-${sessionId}-${timestamp}.log`;
+          const logFilePath = path.join(logsDir, logFileName);
+
+          fs.writeFileSync(logFilePath, JSON.stringify({
+            routed: true,
+            reason: '/think command detected',
+            routedTo: config.Router.ultrathink,
+            originalModel: req.body.model,
+            timestamp: new Date().toISOString(),
+            sessionId,
+          }, null, 2));
+
+        } else {
+          console.log('[MITM TRACE] WARNING: No ultrathink route configured!');
+          server.log.warn('[MITM ROUTING] No ultrathink route configured in config.Router.ultrathink');
+        }
+      }
+
+      console.log('[MITM TRACE] === FINAL REQUEST STATE BEFORE AGENTS ===');
+      console.log('[MITM TRACE] Final model:', req.body.model);
+      console.log('[MITM TRACE] Final reasoning_effort:', req.body.reasoning_effort);
+      console.log('[MITM TRACE] Final verbosity:', req.body.verbosity);
+      console.log('[MITM TRACE] Final reasoning:', req.body.reasoning);
+      console.log('[MITM TRACE] Final request body keys:', Object.keys(req.body));
+
       const useAgents = []
 
       // console.log('[Main] Checking agents for request');
@@ -289,6 +425,12 @@ resolve();
 
       if (useAgents.length) {
         req.agents = useAgents;
+        console.log('[MITM TRACE] === AGENTS PROCESSED ===');
+        console.log('[MITM TRACE] Used agents:', useAgents);
+        console.log('[MITM TRACE] Model after agents:', req.body.model);
+        console.log('[MITM TRACE] reasoning_effort after agents:', req.body.reasoning_effort);
+        console.log('[MITM TRACE] verbosity after agents:', req.body.verbosity);
+        console.log('[MITM TRACE] reasoning after agents:', req.body.reasoning);
       }
 
       // Check if the request has been blocked by an agent
@@ -317,10 +459,24 @@ resolve();
         return; // Exit early - do not forward to router/providers
       }
 
+      console.log('[MITM TRACE] === BEFORE ROUTER ===');
+      console.log('[MITM TRACE] Model before router:', req.body.model);
+      console.log('[MITM TRACE] reasoning_effort before router:', req.body.reasoning_effort);
+      console.log('[MITM TRACE] verbosity before router:', req.body.verbosity);
+      console.log('[MITM TRACE] reasoning before router:', req.body.reasoning);
+      console.log('[MITM TRACE] All request body params before router:', Object.keys(req.body));
+
       await router(req, reply, {
         config,
         event,
       });
+
+      console.log('[MITM TRACE] === AFTER ROUTER ===');
+      console.log('[MITM TRACE] Model after router:', req.body.model);
+      console.log('[MITM TRACE] reasoning_effort after router:', req.body.reasoning_effort);
+      console.log('[MITM TRACE] verbosity after router:', req.body.verbosity);
+      console.log('[MITM TRACE] reasoning after router:', req.body.reasoning);
+      console.log('='.repeat(100));
     }
   });
   server.addHook("onError", async (request, reply, error) => {
@@ -384,8 +540,8 @@ resolve();
                   currentToolName = ''
                   currentToolArgs = ''
                   currentToolId = ''
-                } catch (e) {
-                  console.log(e);
+                } catch (_e) {
+                  console.log(_e);
                 }
                 return undefined;
               }
@@ -428,7 +584,7 @@ resolve();
                     }
 
                     controller.enqueue(value)
-                  }catch (readError: any) {
+                  } catch (readError: any) {
                     if (readError.name === 'AbortError' || readError.code === 'ERR_STREAM_PREMATURE_CLOSE') {
                       abortController.abort(); // 中止所有相关操作
                       break;
@@ -440,7 +596,7 @@ resolve();
                 return undefined
               }
               return data
-            }catch (error: any) {
+            } catch (error: any) {
               console.error('Unexpected error in stream processing:', error);
 
               // 处理流提前关闭的错误
@@ -473,7 +629,7 @@ break;
               try {
                 const message = JSON.parse(str);
                 sessionUsageCache.put(req.sessionId, message.usage);
-              } catch {}
+              } catch (_e) {}
             }
           } catch (readError: any) {
             if (readError.name === 'AbortError' || readError.code === 'ERR_STREAM_PREMATURE_CLOSE') {

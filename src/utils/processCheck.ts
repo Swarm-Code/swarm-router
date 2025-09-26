@@ -1,5 +1,5 @@
 import find from 'find-process';
-import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { PID_FILE, REFERENCE_COUNT_FILE } from '../constants';
 import { readConfigFile } from '.';
 
@@ -7,7 +7,7 @@ export async function isProcessRunning(pid: number): Promise<boolean> {
     try {
         const processes = await find('pid', pid);
         return processes.length > 0;
-    } catch (error) {
+    } catch (_error) {
         return false;
     }
 }
@@ -15,7 +15,7 @@ export async function isProcessRunning(pid: number): Promise<boolean> {
 export function incrementReferenceCount() {
     let count = 0;
     if (existsSync(REFERENCE_COUNT_FILE)) {
-        count = parseInt(readFileSync(REFERENCE_COUNT_FILE, 'utf-8')) || 0;
+        count = parseInt(readFileSync(REFERENCE_COUNT_FILE, 'utf-8'), 10) || 0;
     }
     count++;
     writeFileSync(REFERENCE_COUNT_FILE, count.toString());
@@ -24,7 +24,7 @@ export function incrementReferenceCount() {
 export function decrementReferenceCount() {
     let count = 0;
     if (existsSync(REFERENCE_COUNT_FILE)) {
-        count = parseInt(readFileSync(REFERENCE_COUNT_FILE, 'utf-8')) || 0;
+        count = parseInt(readFileSync(REFERENCE_COUNT_FILE, 'utf-8'), 10) || 0;
     }
     count = Math.max(0, count - 1);
     writeFileSync(REFERENCE_COUNT_FILE, count.toString());
@@ -34,7 +34,7 @@ export function getReferenceCount(): number {
     if (!existsSync(REFERENCE_COUNT_FILE)) {
         return 0;
     }
-    return parseInt(readFileSync(REFERENCE_COUNT_FILE, 'utf-8')) || 0;
+    return parseInt(readFileSync(REFERENCE_COUNT_FILE, 'utf-8'), 10) || 0;
 }
 
 export async function isServiceRunning(): Promise<boolean> {
@@ -43,9 +43,9 @@ export async function isServiceRunning(): Promise<boolean> {
     }
 
     try {
-        const pid = parseInt(readFileSync(PID_FILE, 'utf-8'));
+        const pid = parseInt(readFileSync(PID_FILE, 'utf-8'), 10);
         return await isProcessRunning(pid);
-    } catch (e) {
+    } catch (_e) {
         // Process not running, clean up pid file
         cleanupPidFile();
         return false;
@@ -59,9 +59,8 @@ export function savePid(pid: number) {
 export function cleanupPidFile() {
     if (existsSync(PID_FILE)) {
         try {
-            const fs = require('fs');
-            fs.unlinkSync(PID_FILE);
-        } catch (e) {
+            unlinkSync(PID_FILE);
+        } catch (_e) {
             // Ignore cleanup errors
         }
     }
@@ -73,9 +72,9 @@ export function getServicePid(): number | null {
     }
 
     try {
-        const pid = parseInt(readFileSync(PID_FILE, 'utf-8'));
+        const pid = parseInt(readFileSync(PID_FILE, 'utf-8'), 10);
         return isNaN(pid) ? null : pid;
-    } catch (e) {
+    } catch (_e) {
         return null;
     }
 }

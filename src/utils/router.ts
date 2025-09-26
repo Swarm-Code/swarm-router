@@ -65,7 +65,7 @@ return;
   return tokenCount;
 };
 
-const getUseModel = async (
+const getUseModel = (
   req: any,
   tokenCount: number,
   config: any,
@@ -117,8 +117,10 @@ const getUseModel = async (
     }
   }
   // If the model is claude-3-5-haiku, use the background model
+  // BUT skip this if the model has already been overridden (contains comma for provider,model format)
   if (
     req.body.model?.startsWith("claude-3-5-haiku") &&
+    !req.body.model.includes(',') &&
     config.Router.background
   ) {
     req.log.info(`Using background model for ${req.body.model}`);
@@ -136,7 +138,7 @@ const getUseModel = async (
   ) {
     return config.Router.webSearch;
   }
-  return config.Router!.default;
+  return config.Router?.default || 'claude-3-5-sonnet-latest';
 };
 
 export const router = async (req: any, _res: any, context: any) => {
@@ -165,7 +167,8 @@ export const router = async (req: any, _res: any, context: any) => {
     let model;
     if (config.CUSTOM_ROUTER_PATH) {
       try {
-        const customRouter = require(config.CUSTOM_ROUTER_PATH);
+        const customRouterModule = await import(config.CUSTOM_ROUTER_PATH);
+        const customRouter = customRouterModule.default || customRouterModule;
         req.tokenCount = tokenCount; // Pass token count to custom router
         model = await customRouter(req, config, {
           event,
@@ -175,12 +178,12 @@ export const router = async (req: any, _res: any, context: any) => {
       }
     }
     if (!model) {
-      model = await getUseModel(req, tokenCount, config, lastMessageUsage);
+      model = getUseModel(req, tokenCount, config, lastMessageUsage);
     }
     req.body.model = model;
   } catch (error: any) {
     req.log.error(`Error in router middleware: ${error.message}`);
-    req.body.model = config.Router!.default;
+    req.body.model = config.Router?.default || 'claude-3-5-sonnet-latest';
   }
   return;
 };

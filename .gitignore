@@ -5,3 +5,35 @@ log.txt
 dist
 .DS_Store
 .vscode
+
+# Logs and debug files
+*.log
+debug-logs/
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+
+# Package manager files
+pnpm-lock.yaml
+yarn.lock
+
+# Experiments and development
+experiments/*/logs/
+experiments/*/node_modules/
+experiments/screensaver/
+tools/temp/
+experiments/*

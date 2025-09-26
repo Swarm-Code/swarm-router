@@ -1,7 +1,7 @@
 {
-  "name": "@musistudio/claude-code-router",
+  "name": "@rinadelph/swarm-router",
   "version": "1.0.50",
-  "description": "Use Claude Code without an Anthropics account and route it to another LLM provider",
+  "description": "Swarm Router - Advanced Model Routing and Configuration for Claude Code",
   "bin": {
     "ccr": "./dist/cli.js"
   },
@@ -19,7 +19,7 @@
     "llm",
     "anthropic"
   ],
-  "author": "musistudio",
+  "author": "rinadelph",
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.63.0",
@@ -35,6 +35,7 @@
     "uuid": "^11.1.0"
   },
   "devDependencies": {
+    "@types/http-proxy": "^1.17.16",
     "@types/node": "^24.0.15",
     "@typescript-eslint/eslint-plugin": "^8.44.1",
     "@typescript-eslint/eslint-plugin-tslint": "^7.0.2",
@@ -49,6 +50,7 @@
     "eslint-plugin-prettier": "^5.5.4",
     "eslint-plugin-unicorn": "^61.0.2",
     "fastify": "^5.4.0",
+    "http-proxy": "^1.18.1",
     "prettier": "^3.6.2",
     "shx": "^0.4.0",
     "tslint": "^5.20.1",

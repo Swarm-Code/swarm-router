@@ -1,22 +1,8 @@
-![](blog/images/claude-code-router-img.png)
-
-[![](https://img.shields.io/badge/%F0%9F%87%A8%F0%9F%87%B3-%E4%B8%AD%E6%96%87%E7%89%88-ff0000?style=flat)](README_zh.md)
-[![Discord](https://img.shields.io/badge/Discord-%235865F2.svg?&logo=discord&logoColor=white)](https://discord.gg/rdftVMaUcS)
-[![](https://img.shields.io/github/license/musistudio/claude-code-router)](https://github.com/musistudio/claude-code-router/blob/main/LICENSE)
-
-<hr>
-
-I am seeking funding support for this project to better sustain its development. If you have any ideas, feel free to reach out to me: [m@musiiot.top](mailto:m@musiiot.top)
+![](blog/images/swarm-router-img.png)
 
 > A powerful tool to route Claude Code requests to different models and customize any request.
 
-> Now you can use models such as `GLM-4.5`, `Kimi-K2`, `Qwen3-Coder-480B-A35B`, and `DeepSeek v3.1` for free through the [iFlow Platform](https://platform.iflow.cn/docs/api-mode).     
-> You can use the `ccr ui` command to directly import the `iflow` template in the UI. It’s worth noting that iFlow limits each user to a concurrency of 1, which means you’ll need to route background requests to other models.      
-> If you’d like a better experience, you can try [iFlow CLI](https://cli.iflow.cn).
-
 ![](blog/images/claude-code.png)
-
-![](blog/images/roadmap.svg)
 
 ## ✨ Features
 
@@ -28,6 +14,33 @@ I am seeking funding support for this project to better sustain its development.
 - **Plugin System**: Extend functionality with custom transformers.
 - **MITM Command Interception**: Intercept and route Claude Code local commands (like `/compact`) to specific models.
 
+## 🧪 Experimental Features & Known Issues
+
+This router works amazingly well for advanced model routing, but there are some current limitations and workarounds:
+
+### Known Issues & Workarounds
+
+**Thinking Mode (`think` command)**
+- ✅ **Works**: Thinking routing is functional and routes to designated thinking models
+- ⚠️ **Issue**: Doesn't work with Claude Code's native thinking mode enabled
+- 🔧 **Workaround**: When using the `think` command, turn off Claude Code's thinking mode with `/t` to disable reasoning headers. This allows seamless routing to your configured thinking model.
+
+**Compact Mode (`/compact` command)**
+- ✅ **Works**: Compact routing works amazingly for conversation summarization
+- ⚠️ **Issue**: Timing issue where requests are sent before the new client is initialized
+- 🔧 **Workaround**: After using `/compact`, press `Esc Esc` and navigate back to the compact response to see the results
+
+### Recommended Workflow
+
+For optimal performance, consider using a larger context model (like GPT-5 Mini with 400k context) as your main orchestrator, with smaller ephemeral models for specific tasks:
+
+- **Main Model**: Large context model (GPT-5, Claude Opus) for primary conversations
+- **Quick Tasks**: Fast models (Claude Sonnet) for rapid responses
+- **Syntax/Grep**: Ultra-fast models (Cerebras Qwen 3) for immediate syntax fixes and code analysis
+- **Compacting**: Set to trigger at ~150k conversation context for better context management
+
+This approach leverages the strengths of each model type while maintaining conversation continuity through the larger context orchestrator.
+
 ## 🚀 Getting Started
 
 ### 1. Installation
@@ -38,7 +51,7 @@ First, ensure you have [Claude Code](https://docs.anthropic.com/en/docs/claude-c
 npm install -g @anthropic-ai/claude-code
 ```
 
-Then, install Claude Code Router:
+Then, install Swarm Router:
 
 ```shell
 npm install -g @musistudio/claude-code-router
@@ -53,7 +66,7 @@ The `config.json` file has several key sections:
 - **`PROXY_URL`** (optional): You can set a proxy for API requests, for example: `"PROXY_URL": "http://127.0.0.1:7890"`.
 - **`LOG`** (optional): You can enable logging by setting it to `true`. When set to `false`, no log files will be created. Default is `true`.
 - **`LOG_LEVEL`** (optional): Set the logging level. Available options are: `"fatal"`, `"error"`, `"warn"`, `"info"`, `"debug"`, `"trace"`. Default is `"debug"`.
-- **Logging Systems**: The Claude Code Router uses two separate logging systems:
+- **Logging Systems**: The Swarm Router uses two separate logging systems:
   - **Server-level logs**: HTTP requests, API calls, and server events are logged using pino in the `~/.claude-code-router/logs/` directory with filenames like `ccr-*.log`
   - **Application-level logs**: Routing decisions and business logic events are logged in `~/.claude-code-router/claude-code-router.log`
 - **`APIKEY`** (optional): You can set a secret key to authenticate requests. When set, clients must provide this key in the `Authorization` header (e.g., `Bearer your-secret-key`) or the `x-api-key` header. Example: `"APIKEY": "your-secret-key"`.
@@ -66,7 +79,7 @@ The `config.json` file has several key sections:
 
 #### Environment Variable Interpolation
 
-Claude Code Router supports environment variable interpolation for secure API key management. You can reference environment variables in your `config.json` using either `$VAR_NAME` or `${VAR_NAME}` syntax:
+Swarm Router supports environment variable interpolation for secure API key management. You can reference environment variables in your `config.json` using either `$VAR_NAME` or `${VAR_NAME}` syntax:
 
 ```json
 {
@@ -337,7 +350,7 @@ You can also create your own transformers and load them via the `transformers` f
 {
   "transformers": [
     {
-      "path": "/User/xxx/.claude-code-router/plugins/gemini-cli.js",
+      "path": "/User/xxx/.swarm-code-router/plugins/gemini-cli.js",
       "options": {
         "project": "xxx"
       }
@@ -365,7 +378,7 @@ Example: `/model openrouter,anthropic/claude-3.5-sonnet`
 
 #### MITM Command Interception
 
-Claude Code Router can intercept and route Claude Code's local commands (like `/compact`) to specific models. This feature acts as a Man-in-the-Middle (MITM) system to:
+Swarm Router can intercept and route Claude Code's local commands (like `/compact`) to specific models. This feature acts as a Man-in-the-Middle (MITM) system to:
 
 1. **Intercept Commands**: Detects Claude Code local commands before they reach the default provider
 2. **Route to Specific Models**: Routes intercepted commands to configured models
@@ -415,7 +428,7 @@ In your `config.json`:
 
 ```json
 {
-  "CUSTOM_ROUTER_PATH": "/User/xxx/.claude-code-router/custom-router.js"
+  "CUSTOM_ROUTER_PATH": "/User/xxx/.swarm-code-router/custom-router.js"
 }
 ```
 
@@ -424,7 +437,7 @@ The custom router file must be a JavaScript module that exports an `async` funct
 Here is an example of a `custom-router.js` based on `custom-router.example.js`:
 
 ```javascript
-// /User/xxx/.claude-code-router/custom-router.js
+// /User/xxx/.swarm-code-router/custom-router.js
 
 /**
  * A custom router function to determine which model to use based on the request.
@@ -458,7 +471,7 @@ Please help me analyze this code snippet for potential optimizations...
 ```
 
 ## Status Line (Beta)
-To better monitor the status of claude-code-router at runtime, version v1.0.40 includes a built-in statusline tool, which you can enable in the UI.
+To better monitor the status of Swarm Router at runtime, version v1.0.40 includes a built-in statusline tool, which you can enable in the UI.
 ![statusline-config.png](/blog/images/statusline-config.png)
 
 The effect is as follows:
@@ -466,7 +479,7 @@ The effect is as follows:
 
 ## 🤖 GitHub Actions
 
-Integrate Claude Code Router into your CI/CD pipeline. After setting up [Claude Code Actions](https://docs.anthropic.com/en/docs/claude-code/github-actions), modify your `.github/workflows/claude.yaml` to use the router:
+Integrate Swarm Router into your CI/CD pipeline. After setting up [Claude Code Actions](https://docs.anthropic.com/en/docs/claude-code/github-actions), modify your `.github/workflows/claude.yaml` to use the router:
 
 ```yaml
 name: Claude Code
@@ -496,8 +509,8 @@ jobs:
       - name: Prepare Environment
         run: |
           curl -fsSL https://bun.sh/install | bash
-          mkdir -p $HOME/.claude-code-router
-          cat << 'EOF' > $HOME/.claude-code-router/config.json
+          mkdir -p $HOME/.swarm-code-router
+          cat << 'EOF' > $HOME/.swarm-code-router/config.json
           {
             "log": true,
             "NON_INTERACTIVE_MODE": true,
@@ -508,9 +521,9 @@ jobs:
           EOF
         shell: bash
 
-      - name: Start Claude Code Router
+      - name: Start Swarm Router
         run: |
-          nohup ~/.bun/bin/bunx @musistudio/claude-code-router@1.0.8 start &
+          nohup ~/.bun/bin/bunx @musistudio/swarm-code-router@1.0.8 start &
         shell: bash
 
       - name: Run Claude Code
