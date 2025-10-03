@@ -37,3 +37,9 @@ experiments/*/node_modules/
 experiments/screensaver/
 tools/temp/
 experiments/*
+
+# Swarm conversations (contains system prompts and sensitive data)
+.swarm/
+
+# Git memory files
+.mem-git
