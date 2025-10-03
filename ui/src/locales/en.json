@@ -4,7 +4,7 @@
     "no": "No"
   },
   "app": {
-    "title": "Claude Code Router",
+    "title": "Swarm Router",
     "save": "Save",
     "save_and_restart": "Save and Restart",
     "cancel": "Cancel",
@@ -112,10 +112,76 @@
     "longContextThreshold": "Context Threshold",
     "webSearch": "Web Search",
     "image": "Image",
+    "compact": "Compact",
+    "ultrathink": "Ultrathink",
     "forceUseImageAgent": "Force Use Image Agent",
     "selectModel": "Select a model...",
     "searchModel": "Search model...",
-    "noModelFound": "No model found."
+    "noModelFound": "No model found.",
+    "tabs": {
+      "basic": "Basic",
+      "routes": "Routes",
+      "preprocessors": "Pre-Processors",
+      "advanced": "Advanced"
+    },
+    "routes": {
+      "title": "Route Management",
+      "description": "Configure routing rules and priorities",
+      "id": "ID",
+      "priority": "Priority",
+      "description_label": "Description",
+      "tags": "Tags",
+      "matchers": "Matchers",
+      "provider": "Provider",
+      "model": "Model",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "no_routes": "No routes configured",
+      "add_route": "Add Route",
+      "edit_route": "Edit Route",
+      "delete_route": "Delete Route",
+      "reorder": "Reorder",
+      "move_up": "Move Up",
+      "move_down": "Move Down",
+      "create_route": "Create Route",
+      "matcher_type": "Matcher Type",
+      "condition": "Condition",
+      "add_matcher": "Add Matcher",
+      "add_tag": "Add Tag",
+      "save": "Save"
+    },
+    "preprocessors": {
+      "title": "Pre-Processors",
+      "description": "Configure request pre-processing pipeline",
+      "name": "Name",
+      "priority": "Priority",
+      "description_label": "Description",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "no_preprocessors": "No pre-processors configured",
+      "builtin": "Built-in",
+      "custom": "Custom"
+    },
+    "advanced": {
+      "title": "Advanced Settings",
+      "description": "Configure advanced routing behavior",
+      "telemetry": "Telemetry",
+      "enable_telemetry": "Enable Routing Telemetry",
+      "debug_mode": "Debug Mode",
+      "enable_debug": "Enable Debug Logging",
+      "cache_settings": "Cache Settings",
+      "clear_cache": "Clear Route Cache"
+    },
+    "terminal": {
+      "title": "Logs & Terminal",
+      "all_sessions": "All Sessions",
+      "filter": "Filter",
+      "clear": "Clear",
+      "session": "Session",
+      "level": "Level",
+      "timestamp": "Timestamp",
+      "no_logs": "No logs available"
+    }
   },
   "json_editor": {
     "title": "JSON Editor",

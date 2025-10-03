@@ -289,7 +289,21 @@ resolve();
             }
 
             // Replace the command with a clear instruction for the compact model
-            const compactInstruction = `Please provide a concise summary of this conversation. ${compactArgs ? `Additional instructions: ${  compactArgs}` : ''}`;
+            const compactInstruction = `IMPORTANT: You MUST use deterministic context and provide TOO MUCH context rather than too little. It is ALWAYS better to include excessive detail to ensure nothing is forgotten.
+
+Please provide a SEQUENTIAL and COMPREHENSIVE summary of this conversation. DO NOT be concise - include ALL important details, code snippets, file paths, errors, solutions, and context.
+
+REQUIREMENTS:
+1. Use DETERMINISTIC CONTEXT - be explicit and exact about everything
+2. Include TOO MUCH CONTEXT - it's better to have excessive detail than to miss anything
+3. Process everything SEQUENTIALLY - maintain the chronological order of events
+4. Include ALL file paths, function names, variable names, and code snippets
+5. Document ALL errors and their solutions
+6. Preserve ALL technical details and implementation specifics
+7. Keep ALL todo items and tasks with their full context
+8. Maintain ALL user requirements and instructions exactly as stated
+
+${compactArgs ? `Additional instructions: ${  compactArgs}` : ''}`;
 
             // Add system message for compact operation
             if (!req.body.system) {
@@ -297,7 +311,7 @@ resolve();
             }
             req.body.system.push({
               type: 'text',
-              text: 'You are a conversation summarizer. Create a brief, clear summary that preserves the essential context and key points. Be concise but comprehensive.',
+              text: 'You are a conversation summarizer that MUST provide EXCESSIVE detail and context. NEVER be concise. Always include TOO MUCH information rather than too little. Process everything SEQUENTIALLY and maintain DETERMINISTIC CONTEXT. Include ALL technical details, code snippets, file paths, errors, solutions, and implementation specifics. It is CRITICAL that you preserve everything with excessive detail to ensure nothing is forgotten.',
               cache_control: { type: 'ephemeral' },
             });
 
@@ -306,6 +320,9 @@ resolve();
               role: 'user',
               content: compactInstruction,
             };
+
+            // Set high max_tokens for comprehensive output (65k tokens for Gemini 2.5 Flash)
+            req.body.max_tokens = 65536;
 
             // console.log('[MITM ROUTING] Message transformed for compacting');
           }

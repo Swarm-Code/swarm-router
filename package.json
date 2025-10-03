@@ -1,6 +1,6 @@
 {
   "name": "@swarmcode/swarm-router",
-  "version": "1.0.51",
+  "version": "1.0.52",
   "description": "Swarm Router - Advanced Model Routing and Configuration for Claude Code",
   "bin": {
     "ccr": "./dist/cli.js"
@@ -8,6 +8,9 @@
   "scripts": {
     "build": "node scripts/build.js",
     "release": "npm run build && npm publish",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "lint": "ESLINT_USE_FLAT_CONFIG=false eslint 'src/**/*.ts' -c .eslintrc.js",
     "lint:fix": "ESLINT_USE_FLAT_CONFIG=false eslint 'src/**/*.ts' -c .eslintrc.js --fix",
     "format": "prettier --write 'src/**/*.ts'"
@@ -35,7 +38,9 @@
     "uuid": "^11.1.0"
   },
   "devDependencies": {
+    "@jest/globals": "^30.2.0",
     "@types/http-proxy": "^1.17.16",
+    "@types/jest": "^30.0.0",
     "@types/node": "^24.0.15",
     "@typescript-eslint/eslint-plugin": "^8.44.1",
     "@typescript-eslint/eslint-plugin-tslint": "^7.0.2",
@@ -51,8 +56,10 @@
     "eslint-plugin-unicorn": "^61.0.2",
     "fastify": "^5.4.0",
     "http-proxy": "^1.18.1",
+    "jest": "^30.2.0",
     "prettier": "^3.6.2",
     "shx": "^0.4.0",
+    "ts-jest": "^29.4.4",
     "tslint": "^5.20.1",
     "typescript": "^5.8.2"
   },

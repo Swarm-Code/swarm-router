@@ -4,7 +4,7 @@
     "no": "否"
   },
   "app": {
-    "title": "Claude Code Router",
+    "title": "Swarm Router",
     "save": "保存",
     "save_and_restart": "保存并重启",
     "cancel": "取消",
@@ -112,10 +112,60 @@
     "longContextThreshold": "上下文阈值",
     "webSearch": "网络搜索",
     "image": "图像",
+    "compact": "紧凑",
+    "ultrathink": "超级思考",
     "forceUseImageAgent": "强制使用图像代理",
     "selectModel": "选择一个模型...",
     "searchModel": "搜索模型...",
-    "noModelFound": "未找到模型."
+    "noModelFound": "未找到模型.",
+    "tabs": {
+      "basic": "基础",
+      "routes": "路由",
+      "preprocessors": "预处理器",
+      "advanced": "高级"
+    },
+    "routes": {
+      "title": "路由管理",
+      "description": "配置路由规则和优先级",
+      "id": "ID",
+      "priority": "优先级",
+      "description_label": "描述",
+      "tags": "标签",
+      "matchers": "匹配器",
+      "provider": "提供商",
+      "model": "模型",
+      "enabled": "已启用",
+      "disabled": "已禁用",
+      "no_routes": "未配置路由",
+      "add_route": "添加路由",
+      "edit_route": "编辑路由",
+      "delete_route": "删除路由",
+      "reorder": "重新排序",
+      "move_up": "上移",
+      "move_down": "下移"
+    },
+    "preprocessors": {
+      "title": "预处理器",
+      "description": "配置请求预处理管道",
+      "name": "名称",
+      "priority": "优先级",
+      "description_label": "描述",
+      "enabled": "已启用",
+      "disabled": "已禁用",
+      "no_preprocessors": "未配置预处理器",
+      "builtin": "内置",
+      "custom": "自定义"
+    },
+    "advanced": {
+      "title": "高级设置",
+      "description": "配置高级路由行为",
+      "telemetry": "遥测",
+      "enable_telemetry": "启用路由遥测",
+      "debug_mode": "调试模式",
+      "enable_debug": "启用调试日志",
+      "cache_settings": "缓存设置",
+      "clear_cache": "清除路由缓存"
+    }
   },
   "json_editor": {
     "title": "JSON 编辑器",

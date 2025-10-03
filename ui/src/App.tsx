@@ -4,7 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { Transformers } from "@/components/Transformers";
 import { Providers } from "@/components/Providers";
-import { Router } from "@/components/Router";
+import RouterEnhanced from "@/components/RouterEnhanced";
+import ResizableTerminal from "@/components/ResizableTerminal";
 import { JsonEditor } from "@/components/JsonEditor";
 import { LogViewer } from "@/components/LogViewer";
 import { Button } from "@/components/ui/button";
@@ -336,18 +337,21 @@ function App() {
           </Button>
         </div>
       </header>
-      <main className="flex h-[calc(100vh-4rem)] gap-4 p-4 overflow-hidden">
-        <div className="w-3/5">
-          <Providers />
-        </div>
-        <div className="flex w-2/5 flex-col gap-4">
-          <div className="h-3/5">
-            <Router />
+      <main className="flex flex-col h-[calc(100vh-4rem)] gap-4 p-4 overflow-hidden">
+        <div className="flex gap-4 flex-1 overflow-hidden">
+          <div className="w-3/5">
+            <Providers />
           </div>
-          <div className="flex-1 overflow-hidden">
-            <Transformers />
+          <div className="flex w-2/5 flex-col gap-4">
+            <div className="h-3/5">
+              <RouterEnhanced />
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <Transformers />
+            </div>
           </div>
         </div>
+        <ResizableTerminal />
       </main>
       <SettingsDialog isOpen={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
       <JsonEditor 

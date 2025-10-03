@@ -186,10 +186,11 @@ export const createServer = (config: any): Server => {
     }
   });
 
-  // 获取日志内容端点
+  // 获取日志内容端点 - returns structured, parsed log entries
   server.app.get("/api/logs", async (req, reply) => {
     try {
       const filePath = (req.query).file as string;
+      const limit = parseInt((req.query).limit as string) || 500;
       let logFilePath: string;
 
       if (filePath) {
@@ -205,9 +206,51 @@ export const createServer = (config: any): Server => {
       }
 
       const logContent = readFileSync(logFilePath, 'utf8');
-      const logLines = logContent.split('\n').filter((line) => line.trim())
+      const logLines = logContent.split('\n').filter((line) => line.trim());
 
-      return logLines;
+      // Parse logs into structured format
+      const parsedLogs = logLines
+        .map((line) => {
+          try {
+            // Try parsing as Pino JSON log
+            const json = JSON.parse(line);
+
+            // Map Pino log levels to human-readable strings
+            // Pino levels: 10=trace, 20=debug, 30=info, 40=warn, 50=error, 60=fatal
+            const levelMap: Record<number, string> = {
+              10: 'debug',
+              20: 'debug',
+              30: 'info',
+              40: 'warn',
+              50: 'error',
+              60: 'error'
+            };
+
+            return {
+              timestamp: json.time ? new Date(json.time).toISOString() : new Date().toISOString(),
+              level: levelMap[json.level] || 'info',
+              session: json.sessionId || json.session || json.reqId || 'system',
+              message: json.msg || json.message || line,
+              raw: line
+            };
+          } catch {
+            // Not JSON, try to parse plain text logs
+            const timestampMatch = line.match(/^\[?(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}[^\]]*)\]?/);
+            const levelMatch = line.match(/\[(INFO|WARN|ERROR|DEBUG)\]/i);
+            const sessionMatch = line.match(/\[session[:-]([^\]]+)\]/i) || line.match(/\[([a-f0-9-]{8,36})\]/);
+
+            return {
+              timestamp: timestampMatch ? timestampMatch[1] : new Date().toISOString(),
+              level: (levelMatch ? levelMatch[1].toLowerCase() : 'info'),
+              session: sessionMatch ? sessionMatch[1] : 'system',
+              message: line.replace(/^\[.*?\]\s*/, '').replace(/\[.*?\]\s*/g, '').trim() || line,
+              raw: line
+            };
+          }
+        })
+        .slice(-limit); // Return last N logs
+
+      return parsedLogs;
     } catch (error) {
       console.error("Failed to get logs:", error);
       reply.status(500).send({ error: "Failed to get logs" });

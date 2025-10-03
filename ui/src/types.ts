@@ -19,6 +19,14 @@ export interface RouterConfig {
     longContextThreshold: number;
     webSearch: string;
     image: string;
+    compact?: string;
+    ultrathink?: string;
+    forceUseImageAgent?: boolean;
+    telemetry?: {
+        enabled: boolean;
+        [key: string]: any;
+    };
+    debug?: boolean;
     custom?: any;
 }
 

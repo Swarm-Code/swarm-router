@@ -226,9 +226,9 @@ class ApiClient {
     return this.get<Array<{ name: string; path: string; size: number; lastModified: string }>>('/logs/files');
   }
   
-  // Get logs from specific file
-  async getLogs(filePath: string): Promise<string[]> {
-    return this.get<string[]>(`/logs?file=${encodeURIComponent(filePath)}`);
+  // Get logs from specific file - returns parsed, structured log entries
+  async getLogs(filePath: string): Promise<Array<{ timestamp: string; level: string; session: string; message: string; raw: string }>> {
+    return this.get<Array<{ timestamp: string; level: string; session: string; message: string; raw: string }>>(`/logs?file=${encodeURIComponent(filePath)}`);
   }
   
   // Clear logs from specific file

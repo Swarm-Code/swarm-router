@@ -42,6 +42,14 @@ class LRUCache<K, V> {
   values(): V[] {
     return Array.from(this.cache.values());
   }
+
+  set(key: K, value: V): void {
+    this.put(key, value);
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
 }
 
 export const sessionUsageCache = new LRUCache<string, Usage>(100);

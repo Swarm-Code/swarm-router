@@ -50,7 +50,7 @@ interface GroupedLogsResponse {
 
 export function LogViewer({ open, onOpenChange, showToast }: LogViewerProps) {
   const { t } = useTranslation();
-  const [logs, setLogs] = useState<string[]>([]);
+  const [logs, setLogs] = useState<Array<{ timestamp: string; level: string; session: string; message: string; raw: string }>>([]);
   const [logFiles, setLogFiles] = useState<LogFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<LogFile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -368,20 +368,20 @@ export function LogViewer({ open, onOpenChange, showToast }: LogViewerProps) {
       if (selectedReqId && groupedLogs.groups[selectedReqId]) {
         return groupedLogs.groups[selectedReqId];
       }
-      // 当在分组模式但没有选中具体请求时，显示原始日志字符串数组
+      // 当在分组模式但没有选中具体请求时，显示原始日志
       return logs.map(logLine => ({
-        timestamp: new Date().toISOString(),
-        level: 'info',
-        message: logLine,
+        timestamp: logLine.timestamp,
+        level: logLine.level,
+        message: logLine.message,
         source: undefined,
         reqId: undefined
       }));
     }
-    // 当不在分组模式时，显示原始日志字符串数组
+    // 当不在分组模式时，显示原始日志
     return logs.map(logLine => ({
-      timestamp: new Date().toISOString(),
-      level: 'info',
-      message: logLine,
+      timestamp: logLine.timestamp,
+      level: logLine.level,
+      message: logLine.message,
       source: undefined,
       reqId: undefined
     }));
@@ -391,7 +391,7 @@ export function LogViewer({ open, onOpenChange, showToast }: LogViewerProps) {
     if (!selectedFile || logs.length === 0) return;
 
     // 直接下载原始日志字符串，每行一个日志
-    const logText = logs.join('\n');
+    const logText = logs.map(log => log.raw).join('\n');
 
     const blob = new Blob([logText], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
