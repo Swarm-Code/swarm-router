@@ -79,6 +79,11 @@ import { rewriteStream } from "./utils/rewriteStream";
 import { router } from "./utils/router";
 import { SSEParserTransform } from "./utils/SSEParser.transform";
 import { SSESerializerTransform } from "./utils/SSESerializer.transform";
+import { RouteManager, initializeRouteManager } from "./routing/RouteManager";
+import { registerBuiltInMatchers } from "./routing/matchers";
+import { loadRoutesIntoManager, PROJECT_ROUTES_PATH } from "./routing/loader";
+import { RouteContext } from "./routing/types";
+import { get_encoding } from "tiktoken";
 
 const event = new EventEmitter()
 
@@ -194,6 +199,35 @@ async function run(options: RunOptions = {}) {
       ),
     },
     logger: loggerConfig,
+  });
+
+  // Initialize SDK RouteManager
+  console.log('[SDK INIT] Initializing RouteManager with SDK routing...');
+  const routeManager = initializeRouteManager(undefined, undefined, server.log);
+
+  // Register built-in matchers
+  const matcherRegistry = routeManager.getMatcherRegistry();
+  registerBuiltInMatchers(matcherRegistry);
+  console.log('[SDK INIT] Registered built-in matchers:', matcherRegistry.list());
+
+  // Load routes from routes.json (SDK format)
+  try {
+    const routesLoaded = await loadRoutesIntoManager(routeManager, PROJECT_ROUTES_PATH);
+    console.log(`[SDK INIT] Loaded ${routesLoaded} routes from routes.json`);
+
+    const allRoutes = routeManager.getAllRoutes();
+    allRoutes.forEach((route) => {
+      console.log(`[SDK INIT] - ${route.id} (priority: ${route.priority}) -> ${route.provider},${route.model}`);
+    });
+  } catch (error: any) {
+    console.error('[SDK INIT] Failed to load routes.json:', error.message);
+    console.error('[SDK INIT] Please create a routes.json file in the project root or ~/.claude-code-router/');
+    process.exit(1);
+  }
+
+  // Add RouteManager to request context via hook
+  server.app.addHook('preHandler', async (request, reply) => {
+    (request as any).routeManager = routeManager;
   });
 
   // Add global error handlers to prevent the service from crashing
@@ -399,7 +433,7 @@ ${compactArgs ? `Additional instructions: ${  compactArgs}` : ''}`;
 
         } else {
           console.log('[MITM TRACE] WARNING: No ultrathink route configured!');
-          server.log.warn('[MITM ROUTING] No ultrathink route configured in config.Router.ultrathink');
+          req.log.warn('[MITM ROUTING] No ultrathink route configured in config.Router.ultrathink');
         }
       }
 
@@ -476,23 +510,69 @@ ${compactArgs ? `Additional instructions: ${  compactArgs}` : ''}`;
         return; // Exit early - do not forward to router/providers
       }
 
-      console.log('[MITM TRACE] === BEFORE ROUTER ===');
+      console.log('[MITM TRACE] === BEFORE SDK ROUTER ===');
       console.log('[MITM TRACE] Model before router:', req.body.model);
       console.log('[MITM TRACE] reasoning_effort before router:', req.body.reasoning_effort);
       console.log('[MITM TRACE] verbosity before router:', req.body.verbosity);
       console.log('[MITM TRACE] reasoning before router:', req.body.reasoning);
       console.log('[MITM TRACE] All request body params before router:', Object.keys(req.body));
 
-      await router(req, reply, {
-        config,
-        event,
-      });
+      // SDK Routing ONLY - Build context
+      const enc = get_encoding("cl100k_base");
+      let tokenCount = 0;
 
-      console.log('[MITM TRACE] === AFTER ROUTER ===');
-      console.log('[MITM TRACE] Model after router:', req.body.model);
-      console.log('[MITM TRACE] reasoning_effort after router:', req.body.reasoning_effort);
-      console.log('[MITM TRACE] verbosity after router:', req.body.verbosity);
-      console.log('[MITM TRACE] reasoning after router:', req.body.reasoning);
+      // Calculate token count
+      if (Array.isArray(req.body.messages)) {
+        for (const message of req.body.messages) {
+          if (typeof message.content === "string") {
+            tokenCount += enc.encode(message.content).length;
+          } else if (Array.isArray(message.content)) {
+            for (const part of message.content) {
+              if (part.type === "text" && part.text) {
+                tokenCount += enc.encode(part.text).length;
+              }
+            }
+          }
+        }
+      }
+
+      // Parse sessionId
+      if (req.body.metadata?.user_id) {
+        const parts = req.body.metadata.user_id.split("_session_");
+        if (parts.length > 1) {
+          req.sessionId = parts[1];
+        }
+      }
+
+      const context: RouteContext = {
+        sessionId: req.sessionId,
+        tokenCount,
+        lastUsage: sessionUsageCache.get(req.sessionId),
+        config,
+        log: req.log,
+        startTime: Date.now(),
+        metadata: {},
+      };
+
+      console.log('[SDK ROUTER] Token count:', tokenCount);
+      console.log('[SDK ROUTER] Session ID:', req.sessionId);
+
+      // Select route using SDK RouteManager
+      const routeResult = await (req as any).routeManager.selectRoute(req, context);
+
+      console.log('[SDK ROUTER] Selected route:', routeResult.route?.id);
+      console.log('[SDK ROUTER] Provider,Model:', routeResult.providerModel);
+      console.log('[SDK ROUTER] Selection time:', routeResult.selectionTimeMs, 'ms');
+      console.log('[SDK ROUTER] Used fallback:', routeResult.usedFallback);
+
+      // Set the selected model
+      req.body.model = routeResult.providerModel;
+
+      console.log('[MITM TRACE] === AFTER SDK ROUTER ===');
+      console.log('[MITM TRACE] Final model:', req.body.model);
+      console.log('[MITM TRACE] reasoning_effort:', req.body.reasoning_effort);
+      console.log('[MITM TRACE] verbosity:', req.body.verbosity);
+      console.log('[MITM TRACE] reasoning:', req.body.reasoning);
       console.log('='.repeat(100));
     }
   });

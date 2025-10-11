@@ -91,6 +91,100 @@ export const createServer = (config: any): Server => {
     return { success: true, message: "Config saved successfully" };
   });
 
+  // SDK Routes API - Get all routes
+  server.app.get("/api/sdk/routes", async (req, reply) => {
+    try {
+      const { loadRoutesConfig, DEFAULT_ROUTES_PATH, PROJECT_ROUTES_PATH } = await import("./routing/loader");
+      const routesConfig = await loadRoutesConfig(PROJECT_ROUTES_PATH);
+      return routesConfig;
+    } catch (error: any) {
+      reply.status(500).send({ error: `Failed to load routes: ${error.message}` });
+    }
+  });
+
+  // SDK Routes API - Save routes
+  server.app.post("/api/sdk/routes", async (req, reply) => {
+    try {
+      const { saveRoutesConfig, PROJECT_ROUTES_PATH } = await import("./routing/loader");
+      const routesConfig = req.body;
+
+      // Validate basic structure
+      if (!routesConfig.routes || !Array.isArray(routesConfig.routes)) {
+        reply.status(400).send({ error: "Invalid routes config: 'routes' array is required" });
+        return;
+      }
+
+      await saveRoutesConfig(routesConfig, PROJECT_ROUTES_PATH);
+      return { success: true, message: "Routes saved successfully" };
+    } catch (error: any) {
+      reply.status(500).send({ error: `Failed to save routes: ${error.message}` });
+    }
+  });
+
+  // SDK Routes API - Get single route by ID
+  server.app.get("/api/sdk/routes/:id", async (req, reply) => {
+    try {
+      const { loadRoutesConfig, PROJECT_ROUTES_PATH } = await import("./routing/loader");
+      const routesConfig = await loadRoutesConfig(PROJECT_ROUTES_PATH);
+      const routeId = (req.params as any).id;
+      const route = routesConfig.routes.find((r) => r.id === routeId);
+
+      if (!route) {
+        reply.status(404).send({ error: `Route not found: ${routeId}` });
+        return;
+      }
+
+      return route;
+    } catch (error: any) {
+      reply.status(500).send({ error: `Failed to load route: ${error.message}` });
+    }
+  });
+
+  // SDK Routes API - Update single route
+  server.app.put("/api/sdk/routes/:id", async (req, reply) => {
+    try {
+      const { loadRoutesConfig, saveRoutesConfig, PROJECT_ROUTES_PATH } = await import("./routing/loader");
+      const routesConfig = await loadRoutesConfig(PROJECT_ROUTES_PATH);
+      const routeId = (req.params as any).id;
+      const updatedRoute = req.body;
+
+      const routeIndex = routesConfig.routes.findIndex((r) => r.id === routeId);
+      if (routeIndex === -1) {
+        reply.status(404).send({ error: `Route not found: ${routeId}` });
+        return;
+      }
+
+      routesConfig.routes[routeIndex] = { ...routesConfig.routes[routeIndex], ...updatedRoute };
+      await saveRoutesConfig(routesConfig, PROJECT_ROUTES_PATH);
+
+      return { success: true, message: "Route updated successfully", route: routesConfig.routes[routeIndex] };
+    } catch (error: any) {
+      reply.status(500).send({ error: `Failed to update route: ${error.message}` });
+    }
+  });
+
+  // SDK Routes API - Delete route
+  server.app.delete("/api/sdk/routes/:id", async (req, reply) => {
+    try {
+      const { loadRoutesConfig, saveRoutesConfig, PROJECT_ROUTES_PATH } = await import("./routing/loader");
+      const routesConfig = await loadRoutesConfig(PROJECT_ROUTES_PATH);
+      const routeId = (req.params as any).id;
+
+      const routeIndex = routesConfig.routes.findIndex((r) => r.id === routeId);
+      if (routeIndex === -1) {
+        reply.status(404).send({ error: `Route not found: ${routeId}` });
+        return;
+      }
+
+      routesConfig.routes.splice(routeIndex, 1);
+      await saveRoutesConfig(routesConfig, PROJECT_ROUTES_PATH);
+
+      return { success: true, message: "Route deleted successfully" };
+    } catch (error: any) {
+      reply.status(500).send({ error: `Failed to delete route: ${error.message}` });
+    }
+  });
+
   // Add endpoint to restart the service with access control
   server.app.post("/api/restart", async (req, reply) => {
     reply.send({ success: true, message: "Service restart initiated" });

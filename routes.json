@@ -1,0 +1,142 @@
+{
+  "$schema": "./routes.schema.json",
+  "version": "1.0.0",
+  "description": "SDK-based routing configuration for Claude Code Router",
+  "routes": [
+    {
+      "id": "long-context",
+      "priority": 800,
+      "description": "Route to long context model when token count exceeds threshold",
+      "tags": ["long-context", "high-token"],
+      "enabled": true,
+      "matchers": [
+        {
+          "type": "token_count",
+          "description": "Matches requests with high token count",
+          "condition": {
+            "threshold": 120000,
+            "operator": "gt"
+          }
+        }
+      ],
+      "provider": "cerebras-primary",
+      "model": "qwen-3-coder-480b",
+      "transformations": [],
+      "metadata": {
+        "reason": "Token count exceeds threshold",
+        "category": "performance"
+      }
+    },
+    {
+      "id": "background-haiku",
+      "priority": 700,
+      "description": "Route claude-3-5-haiku requests to high-performance model",
+      "tags": ["background", "haiku", "fast"],
+      "enabled": true,
+      "matchers": [
+        {
+          "type": "model",
+          "description": "Matches Haiku model requests",
+          "condition": {
+            "models": ["claude-3-5-haiku"],
+            "matchMode": "prefix"
+          }
+        }
+      ],
+      "provider": "cerebras-primary",
+      "model": "qwen-3-coder-480b",
+      "transformations": [],
+      "metadata": {
+        "reason": "Haiku model detected",
+        "category": "background-tasks"
+      }
+    },
+    {
+      "id": "thinking",
+      "priority": 600,
+      "description": "Route to thinking model when reasoning is requested",
+      "tags": ["thinking", "reasoning", "extended-thinking"],
+      "enabled": true,
+      "matchers": [
+        {
+          "type": "thinking",
+          "description": "Matches requests with thinking/reasoning enabled",
+          "condition": {}
+        }
+      ],
+      "provider": "cerebras-primary",
+      "model": "qwen-3-coder-480b",
+      "transformations": [],
+      "metadata": {
+        "reason": "Thinking/reasoning requested",
+        "category": "reasoning"
+      }
+    },
+    {
+      "id": "web-search",
+      "priority": 500,
+      "description": "Route to web search capable model when web_search tools present",
+      "tags": ["web-search", "tools", "search"],
+      "enabled": true,
+      "matchers": [
+        {
+          "type": "tool",
+          "description": "Matches requests with web search tools",
+          "condition": {
+            "toolTypes": ["web_search"],
+            "matchMode": "any"
+          }
+        }
+      ],
+      "provider": "cerebras-primary",
+      "model": "qwen-3-coder-480b",
+      "transformations": [],
+      "metadata": {
+        "reason": "Web search tools detected",
+        "category": "web-search"
+      }
+    },
+    {
+      "id": "default",
+      "priority": 100,
+      "description": "Default fallback route for all requests",
+      "tags": ["default", "fallback"],
+      "enabled": true,
+      "matchers": [
+        {
+          "type": "always",
+          "description": "Always matches as fallback",
+          "condition": {}
+        }
+      ],
+      "provider": "cerebras-primary",
+      "model": "qwen-3-coder-480b",
+      "transformations": [],
+      "metadata": {
+        "reason": "Default fallback",
+        "category": "default"
+      }
+    }
+  ],
+  "fallbackChains": {
+    "description": "Fallback provider chains when primary fails",
+    "default": [
+      "cerebras-primary,qwen-3-coder-480b",
+      "cerebras-backup1,qwen-3-coder-480b",
+      "cerebras-backup2,qwen-3-coder-480b",
+      "groq-fallback,qwen2.5-coder-32b-instruct",
+      "openrouter-fallback,qwen/qwen-3-coder-480b"
+    ],
+    "longContext": [
+      "cerebras-primary,qwen-3-coder-480b",
+      "cerebras-backup1,qwen-3-coder-480b",
+      "openrouter-fallback,qwen/qwen-3-coder-480b",
+      "groq-fallback,qwen2.5-72b-instruct"
+    ],
+    "thinking": [
+      "openrouter-gemini,google/gemini-2.5-flash-preview-09-2025",
+      "cerebras-primary,qwen-3-coder-480b",
+      "cerebras-backup1,qwen-3-coder-480b"
+    ]
+  }
+}

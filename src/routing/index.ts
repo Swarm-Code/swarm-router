@@ -5,7 +5,7 @@
  * - RouteManager for managing and evaluating routes
  * - Built-in matchers for route selection
  * - Built-in transformations for request modification
- * - Default route configurations
+ * - Routes loader for loading/saving route configurations
  */
 
 export { RouteManager, RouteSelectionResult } from "./RouteManager";
@@ -30,8 +30,12 @@ export {
   registerBuiltInTransformations,
 } from "./transformations";
 export {
-  createDefaultRoutes,
-  createCompactRoute,
-  createUltrathinkRoute,
-  registerConfigRoutes,
-} from "./routes";
+  loadRoutesConfig,
+  saveRoutesConfig,
+  loadRoutesIntoManager,
+  exportRoutesFromManager,
+  migrateFromLegacyConfig,
+  RoutesConfig,
+  DEFAULT_ROUTES_PATH,
+  PROJECT_ROUTES_PATH,
+} from "./loader";
